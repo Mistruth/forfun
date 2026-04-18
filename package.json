@@ -17,7 +17,7 @@
     "@radix-ui/react-aspect-ratio": "^1.1.0",
     "@radix-ui/react-avatar": "^1.1.0",
     "@radix-ui/react-checkbox": "^1.1.0",
-    "@radix-ui/react-collapsible": "^1.1.0",
+    "@radix-ui/react-collapsible": "^1.0.0",
     "@radix-ui/react-context-menu": "^2.2.0",
     "@radix-ui/react-dialog": "^1.1.0",
     "@radix-ui/react-dropdown-menu": "^2.1.0",
@@ -69,8 +69,6 @@
   },
   "devDependencies": {
     "@babel/plugin-transform-react-jsx-source": "7.25.9",
-    "@meituan-nocode/vite-plugin-dev-logger": "^0.1.0",
-    "@meituan-nocode/vite-plugin-nocode-html-transformer": "^0.3.1",
     "@types/react": "^18.2.56",
     "@types/react-dom": "^18.2.19",
     "@vitejs/plugin-react": "4.3.4",
