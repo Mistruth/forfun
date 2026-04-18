@@ -1,2 +1,23 @@
 node_modules
 build
+
+# 环境变量文件
+.env
+.env.*
+!.env.example
+
+# 敏感文件
+*.pem
+*.key
+*.p12
+*.jks
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+
+# 系统文件
+.DS_Store
+Thumbs.db
