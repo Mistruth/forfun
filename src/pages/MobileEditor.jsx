@@ -4,14 +4,15 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { customComponents, componentCategories } from '@/components/CustomComponentDefinitions';
 import BlockEditor from '@/components/BlockEditor';
+import SaveTemplateDialog from '@/components/SaveTemplateDialog';
 import BlocksPreview from '@/components/BlocksPreview';
 import ComponentConfigDrawer from '@/components/ComponentConfigDrawer';
 import WechatStyleWrapper from '@/components/WechatStyleWrapper';
-import { toPng, toJpeg } from 'html-to-image';
+import { toPng, toJpeg, toBlob } from 'html-to-image';
 import {
   LayoutTemplate, Eye, Plus, Settings2, X, ChevronLeft,
   Trash2, ChevronUp, ChevronDown, Download, Image as ImageIcon,
-  Type, AlignLeft, Grid, ChevronDown as ChevronDownIcon,
+  Type, AlignLeft, Grid, ChevronDown as ChevronDownIcon, Scissors, BookmarkPlus,
 } from 'lucide-react';
 
 // ── id 生成 ──────────────────────────────────────────────────
@@ -29,6 +30,9 @@ const MobileEditor = () => {
   const [tab, setTab] = useState('edit');
   const [showComponentSheet, setShowComponentSheet] = useState(false);
   const [activeCategory, setActiveCategory] = useState('all');
+  const [sliceHeight, setSliceHeight] = useState(2000);
+  const [showSliceDialog, setShowSliceDialog] = useState(false);
+  const [showSaveTemplate, setShowSaveTemplate] = useState(false);
   const previewRef = useRef(null);
 
   // 当前选中的自定义块（用于配置抽屉）
@@ -37,13 +41,21 @@ const MobileEditor = () => {
     [blocks, selectedBlockId]
   );
 
-  // 插入组件
+  // 插入组件（若有选中块则插入到其下方，否则追加到末尾）
   const handleInsertComponent = useCallback((componentId, defaultProps) => {
     const newBlock = { id: genId(), type: 'custom', componentId, props: { ...defaultProps } };
-    setBlocks(prev => [...prev, newBlock]);
+    setBlocks(prev => {
+      const idx = prev.findIndex(b => b.id === selectedBlockId);
+      if (idx !== -1) {
+        const next = [...prev];
+        next.splice(idx + 1, 0, newBlock);
+        return next;
+      }
+      return [...prev, newBlock];
+    });
     setShowComponentSheet(false);
     toast.success(`已插入「${customComponents.find(c => c.id === componentId)?.name || '组件'}」`);
-  }, []);
+  }, [selectedBlockId]);
 
   // 插入 Markdown 文本块
   const handleInsertMarkdown = useCallback(() => {
@@ -81,6 +93,51 @@ const MobileEditor = () => {
     }
   };
 
+  // 分段导出图片
+  const handleSliceExport = async (format = 'png') => {
+    const el = document.querySelector('.mobile-preview-export');
+    if (!el) { toast.error('预览区未准备好'); return; }
+    try {
+      const opts = { quality: 1, pixelRatio: 2, backgroundColor: '#ffffff' };
+      const blob = await toBlob(el, {
+        ...opts,
+        type: format === 'png' ? 'image/png' : 'image/jpeg',
+        ...(format === 'jpg' ? { quality: 0.95 } : {}),
+      });
+      const url = URL.createObjectURL(blob);
+      const img = new window.Image();
+      await new Promise((resolve, reject) => {
+        img.onload = () => { URL.revokeObjectURL(url); resolve(); };
+        img.onerror = (e) => { URL.revokeObjectURL(url); reject(e); };
+        img.src = url;
+      });
+      const { width, height } = img;
+      const pixelSlice = sliceHeight * 2;
+      const sliceCount = Math.ceil(height / pixelSlice);
+      for (let i = 0; i < sliceCount; i++) {
+        const startY = i * pixelSlice;
+        const h = Math.min(pixelSlice, height - startY);
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, startY, width, h, 0, 0, width, h);
+        const ext = format === 'png' ? 'png' : 'jpg';
+        const quality = format === 'png' ? undefined : 0.95;
+        const segDataUrl = quality ? canvas.toDataURL(`image/${ext}`, quality) : canvas.toDataURL(`image/${ext}`);
+        const link = document.createElement('a');
+        link.download = `article_${i + 1}.${ext}`;
+        link.href = segDataUrl;
+        link.click();
+      }
+      toast.success(`已切成 ${sliceCount} 段并导出！`);
+      setShowSliceDialog(false);
+    } catch (e) {
+      console.error('分段导出失败:', e);
+      toast.error('分段导出失败，请重试');
+    }
+  };
+
   // 过滤组件
   const filteredComponents = customComponents.filter(c =>
     activeCategory === 'all' || c.category === activeCategory
@@ -106,8 +163,15 @@ const MobileEditor = () => {
               <Button size="sm" variant="outline" className="h-7 text-xs px-2" onClick={() => handleExport('jpg')}>
                 <Download size={13} className="mr-1" /> JPG
               </Button>
+              <Button size="sm" variant="outline" className="h-7 text-xs px-2" onClick={() => setShowSliceDialog(true)}>
+                <Scissors size={13} className="mr-1" /> 分段
+              </Button>
             </>
           )}
+          <Button size="sm" variant="outline" className="h-7 text-xs px-2 text-blue-600 border-blue-200"
+            onClick={() => setShowSaveTemplate(true)} disabled={blocks.length === 0}>
+            <BookmarkPlus size={13} className="mr-1" /> 存为模板
+          </Button>
           {blocks.length > 0 && (
             <Button size="sm" variant="ghost" className="h-7 text-xs text-red-400 px-2"
               onClick={() => { setBlocks([]); setSelectedBlockId(null); toast.success('已清空'); }}>
@@ -279,6 +343,51 @@ const MobileEditor = () => {
           onClose={() => setSelectedBlockId(null)}
         />
       )}
+
+      {/* ── 分段导出弹窗 ── */}
+      {showSliceDialog && (
+        <>
+          <div className="fixed inset-0 bg-black/40 z-40" onClick={() => setShowSliceDialog(false)} />
+          <div className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-2xl shadow-2xl animate-slide-up">
+            <div className="flex items-center justify-between px-4 pt-4 pb-2">
+              <h3 className="font-bold text-gray-800 flex items-center gap-2">
+                <Scissors size={16} /> 分段导出
+              </h3>
+              <button onClick={() => setShowSliceDialog(false)} className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center text-gray-500">
+                <X size={15} />
+              </button>
+            </div>
+            <div className="px-4 py-4 space-y-4">
+              <div>
+                <label className="text-sm text-gray-600 mb-1 block">每段高度（px）</label>
+                <input
+                  type="number"
+                  min={500}
+                  max={20000}
+                  step={100}
+                  value={sliceHeight}
+                  onChange={(e) => setSliceHeight(Math.max(500, Number(e.target.value) || 2000))}
+                  className="w-full h-10 border rounded-lg px-3 text-sm"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <Button className="w-full" onClick={() => handleSliceExport('png')}>
+                  <ImageIcon size={14} className="mr-1" /> 分段 PNG
+                </Button>
+                <Button className="w-full" variant="outline" onClick={() => handleSliceExport('jpg')}>
+                  <Download size={14} className="mr-1" /> 分段 JPG
+                </Button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      <SaveTemplateDialog
+        open={showSaveTemplate}
+        onClose={() => setShowSaveTemplate(false)}
+        blocks={blocks}
+      />
     </div>
   );
 };
