@@ -10,6 +10,11 @@ import ComponentConfigDrawer from '@/components/ComponentConfigDrawer';
 import WechatStyleWrapper from '@/components/WechatStyleWrapper';
 import { toPng, toJpeg, toBlob } from 'html-to-image';
 import {
+  downloadImageSlices,
+  getExportElementHeight,
+  getNonBreakingSliceRanges,
+} from '@/lib/exportSlices';
+import {
   LayoutTemplate, Eye, Plus, Settings2, X, ChevronLeft,
   Trash2, ChevronUp, ChevronDown, Download, Image as ImageIcon,
   Type, AlignLeft, Grid, ChevronDown as ChevronDownIcon, Scissors, BookmarkPlus,
@@ -104,32 +109,8 @@ const MobileEditor = () => {
         type: format === 'png' ? 'image/png' : 'image/jpeg',
         ...(format === 'jpg' ? { quality: 0.95 } : {}),
       });
-      const url = URL.createObjectURL(blob);
-      const img = new window.Image();
-      await new Promise((resolve, reject) => {
-        img.onload = () => { URL.revokeObjectURL(url); resolve(); };
-        img.onerror = (e) => { URL.revokeObjectURL(url); reject(e); };
-        img.src = url;
-      });
-      const { width, height } = img;
-      const pixelSlice = sliceHeight * 2;
-      const sliceCount = Math.ceil(height / pixelSlice);
-      for (let i = 0; i < sliceCount; i++) {
-        const startY = i * pixelSlice;
-        const h = Math.min(pixelSlice, height - startY);
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = h;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, startY, width, h, 0, 0, width, h);
-        const ext = format === 'png' ? 'png' : 'jpg';
-        const quality = format === 'png' ? undefined : 0.95;
-        const segDataUrl = quality ? canvas.toDataURL(`image/${ext}`, quality) : canvas.toDataURL(`image/${ext}`);
-        const link = document.createElement('a');
-        link.download = `article_${i + 1}.${ext}`;
-        link.href = segDataUrl;
-        link.click();
-      }
+      const ranges = getNonBreakingSliceRanges(el, sliceHeight);
+      const sliceCount = await downloadImageSlices(blob, format, ranges, getExportElementHeight(el));
       toast.success(`已切成 ${sliceCount} 段并导出！`);
       setShowSliceDialog(false);
     } catch (e) {

@@ -11,12 +11,24 @@ import { customComponents } from './CustomComponentDefinitions';
 const BlocksPreview = ({ blocks }) => {
   if (!blocks || blocks.length === 0) return null;
 
+  const exportBlockStyle = {
+    display: 'flow-root',
+    breakInside: 'avoid',
+    pageBreakInside: 'avoid',
+  };
+
   return (
     <>
       {blocks.map((block) => {
         if (block.type === 'markdown') {
           return (
-            <div key={block.id} className="markdown-preview prose prose-lg max-w-none">
+            <div
+              key={block.id}
+              data-export-block="true"
+              data-block-id={block.id}
+              style={exportBlockStyle}
+              className="markdown-preview prose prose-lg max-w-none"
+            >
               <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
                 rehypePlugins={[rehypeRaw]}
@@ -34,6 +46,9 @@ const BlocksPreview = ({ blocks }) => {
           return (
             <div
               key={block.id}
+              data-export-block="true"
+              data-block-id={block.id}
+              style={exportBlockStyle}
               dangerouslySetInnerHTML={{ __html: html }}
             />
           );
