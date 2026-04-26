@@ -5,24 +5,26 @@ import { CardContent, Card } from '@/components/ui/card';
 import { toast } from 'sonner';
 import CustomComponentPanel from '@/components/CustomComponentPanel';
 import BlockEditor from '@/components/BlockEditor';
-import ComponentConfigDrawer from '@/components/ComponentConfigDrawer';
-import { RotateCcw, Copy, PanelLeftClose, Sparkles, PanelLeft, ChevronLeft, Smartphone, LayoutTemplate } from 'lucide-react';
-import React, { useState, useCallback, useMemo } from 'react';
+import { ComponentConfigPanel } from '@/components/ComponentConfigDrawer';
+import {
+  RotateCcw, Copy, PanelLeftClose, Sparkles, PanelLeft, ChevronLeft,
+  Smartphone, LayoutTemplate, Eye, X, Undo2, Redo2, Save, BookmarkPlus,
+} from 'lucide-react';
+import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import TemplatePickerDialog from '@/components/TemplatePickerDialog';
-import MarkdownPreview from '@/components/MarkdownPreview';
+import SaveTemplateDialog from '@/components/SaveTemplateDialog';
 import BlocksPreview from '@/components/BlocksPreview';
 import WechatStyleWrapper from '@/components/WechatStyleWrapper';
 import { Button } from '@/components/ui/button';
 import { customComponents } from '@/components/CustomComponentDefinitions';
 
-// 生成唯一 id
 let _idCounter = 1;
 const genId = () => `block_${Date.now()}_${_idCounter++}`;
 
-const defaultBlocks = [];
+const DRAFT_KEY = 'editor_draft';
+const MAX_HISTORY = 50;
 
-// 将 blocks 转换为用于预览/导出的 HTML+Markdown 混合字符串
 const blocksToContent = (blocks) => {
   return blocks.map(block => {
     if (block.type === 'markdown') return block.content || '';
@@ -35,20 +37,131 @@ const blocksToContent = (blocks) => {
   }).join('\n\n');
 };
 
+// ─── 草稿读写 ──────────────────────────────────────────────
+const loadDraft = () => {
+  try {
+    const raw = localStorage.getItem(DRAFT_KEY);
+    if (!raw) return null;
+    const { blocks, savedAt } = JSON.parse(raw);
+    if (Array.isArray(blocks)) return { blocks, savedAt };
+  } catch { /* ignore */ }
+  return null;
+};
+
+const saveDraft = (blocks) => {
+  const data = { blocks, savedAt: Date.now() };
+  localStorage.setItem(DRAFT_KEY, JSON.stringify(data));
+  return data.savedAt;
+};
+
+// ─── 主页面 ────────────────────────────────────────────────
 const Index = () => {
   const navigate = useNavigate();
-  const [blocks, setBlocks] = useState(defaultBlocks);
   const [showComponentPanel, setShowComponentPanel] = useState(false);
   const [selectedBlockId, setSelectedBlockId] = useState(null);
   const [showTemplatePicker, setShowTemplatePicker] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
+  const [showSaveTemplate, setShowSaveTemplate] = useState(false);
 
-  // 当前选中的块
+  // 草稿：启动时尝试恢复
+  const [draftSavedAt, setDraftSavedAt] = useState(() => loadDraft()?.savedAt || null);
+
+  // blocks 初始化：有草稿则恢复
+  const [blocks, setBlocks] = useState(() => loadDraft()?.blocks || []);
+
+  // ─── 撤销/重做历史 ─────────────────────────────────────
+  const historyRef = useRef({ stack: [], index: -1 });
+  const skipHistoryRef = useRef(false);
+  const [canUndo, setCanUndo] = useState(false);
+  const [canRedo, setCanRedo] = useState(false);
+
+  const pushHistory = useCallback((newBlocks) => {
+    const h = historyRef.current;
+    const stack = h.stack.slice(0, h.index + 1);
+    stack.push(JSON.parse(JSON.stringify(newBlocks)));
+    if (stack.length > MAX_HISTORY) stack.shift();
+    const newIndex = stack.length - 1;
+    historyRef.current = { stack, index: newIndex };
+    setCanUndo(newIndex > 0);
+    setCanRedo(false);
+  }, []);
+
+  // 组件挂载时记录初始状态
+  useEffect(() => {
+    pushHistory(blocks);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // 包装 setBlocks，自动记录历史
+  const setBlocksWithHistory = useCallback((updater) => {
+    setBlocks(prev => {
+      const next = typeof updater === 'function' ? updater(prev) : updater;
+      if (!skipHistoryRef.current) {
+        pushHistory(next);
+      }
+      skipHistoryRef.current = false;
+      return next;
+    });
+  }, [pushHistory]);
+
+  const handleUndo = useCallback(() => {
+    const h = historyRef.current;
+    if (h.index <= 0) return;
+    const newIndex = h.index - 1;
+    historyRef.current = { ...h, index: newIndex };
+    skipHistoryRef.current = true;
+    setBlocks(h.stack[newIndex]);
+    setCanUndo(newIndex > 0);
+    setCanRedo(true);
+  }, []);
+
+  const handleRedo = useCallback(() => {
+    const h = historyRef.current;
+    if (h.index >= h.stack.length - 1) return;
+    const newIndex = h.index + 1;
+    historyRef.current = { ...h, index: newIndex };
+    skipHistoryRef.current = true;
+    setBlocks(h.stack[newIndex]);
+    setCanUndo(true);
+    setCanRedo(newIndex < h.stack.length - 1);
+  }, []);
+
+  // ─── 保存草稿 ─────────────────────────────────────────
+  const handleSaveDraft = useCallback(() => {
+    try {
+      const at = saveDraft(blocks);
+      setDraftSavedAt(at);
+      toast.success('草稿已保存');
+    } catch {
+      toast.error('保存失败，内容过大');
+    }
+  }, [blocks]);
+
+  // ─── 键盘快捷键 ────────────────────────────────────────
+  const saveDraftRef = useRef(handleSaveDraft);
+  saveDraftRef.current = handleSaveDraft;
+
+  useEffect(() => {
+    const handler = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'z') {
+        e.preventDefault();
+        e.shiftKey ? handleRedo() : handleUndo();
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+        e.preventDefault();
+        saveDraftRef.current();
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [handleUndo, handleRedo]);
+
+  // ─── 现有业务逻辑 ──────────────────────────────────────
   const selectedBlock = useMemo(
     () => blocks.find(b => b.id === selectedBlockId && b.type === 'custom') || null,
-    [blocks, selectedBlockId]
+    [blocks, selectedBlockId],
   );
 
-  // 预览内容（仅用于复制文本）
   const previewContent = useMemo(() => blocksToContent(blocks), [blocks]);
 
   const handleCopy = () => {
@@ -57,25 +170,23 @@ const Index = () => {
   };
 
   const handleReset = () => {
-    setBlocks(defaultBlocks);
+    setBlocksWithHistory([]);
     setSelectedBlockId(null);
-    toast.success('已重置为默认内容');
+    toast.success('已重置');
   };
 
-  // 应用模板
   const handleApplyTemplate = useCallback((templateBlocks) => {
-    setBlocks(templateBlocks);
+    setBlocksWithHistory(templateBlocks);
     setSelectedBlockId(null);
     toast.success('模板已加载，开始编辑吧！');
-  }, []);
+  }, [setBlocksWithHistory]);
 
   const handleClear = () => {
-    setBlocks([]);
+    setBlocksWithHistory([]);
     setSelectedBlockId(null);
     toast.success('内容已清空');
   };
 
-  // 插入自定义组件块
   const handleInsertComponent = useCallback((template, componentId, defaultProps) => {
     const newBlock = {
       id: genId(),
@@ -83,24 +194,36 @@ const Index = () => {
       componentId,
       props: { ...defaultProps },
     };
-    setBlocks(prev => [...prev, newBlock]);
+    setBlocksWithHistory(prev => {
+      const idx = prev.findIndex(b => b.id === selectedBlockId);
+      if (idx !== -1) {
+        const next = [...prev];
+        next.splice(idx + 1, 0, newBlock);
+        return next;
+      }
+      return [...prev, newBlock];
+    });
     toast.success(`已插入「${customComponents.find(c => c.id === componentId)?.name || '组件'}」`);
-  }, []);
+  }, [selectedBlockId, setBlocksWithHistory]);
 
-  // 更新组件 props（来自抽屉配置）
   const handleUpdateBlockProps = useCallback((blockId, newProps) => {
-    setBlocks(prev => prev.map(b => b.id === blockId ? { ...b, props: newProps } : b));
-  }, []);
+    setBlocksWithHistory(prev => prev.map(b => b.id === blockId ? { ...b, props: newProps } : b));
+  }, [setBlocksWithHistory]);
 
-  // 选中块
   const handleSelectBlock = useCallback((blockId) => {
     setSelectedBlockId(prev => prev === blockId ? null : blockId);
   }, []);
 
-  // 关闭抽屉
   const handleCloseDrawer = useCallback(() => {
     setSelectedBlockId(null);
   }, []);
+
+  // 草稿保存时间格式化
+  const draftTimeStr = useMemo(() => {
+    if (!draftSavedAt) return null;
+    const d = new Date(draftSavedAt);
+    return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
+  }, [draftSavedAt]);
 
   return (
     <div className="h-screen flex bg-gray-100">
@@ -162,6 +285,16 @@ const Index = () => {
             <Button
               size="sm"
               variant="outline"
+              onClick={() => setShowSaveTemplate(true)}
+              className="flex items-center gap-1 text-blue-600 border-blue-200 hover:bg-blue-50"
+              disabled={blocks.length === 0}
+            >
+              <BookmarkPlus size={14} />
+              <span className="hidden sm:inline">存为模板</span>
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
               onClick={() => navigate('/mobile')}
               className="flex items-center gap-1 text-blue-600 border-blue-200 hover:bg-blue-50"
             >
@@ -169,6 +302,39 @@ const Index = () => {
               <span className="hidden sm:inline">移动端</span>
             </Button>
             <Separator orientation="vertical" className="h-6" />
+            {/* 预览 */}
+            <Button
+              size="sm"
+              className="flex items-center gap-1 text-white bg-green-500 hover:bg-green-600"
+              onClick={() => setShowPreview(true)}
+            >
+              <Eye size={14} />
+              <span className="hidden sm:inline">预览</span>
+            </Button>
+            <Separator orientation="vertical" className="h-6" />
+            {/* 撤销 / 重做 */}
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleUndo}
+              disabled={!canUndo}
+              className="h-8 w-8 p-0"
+              title="撤销 (Ctrl+Z)"
+            >
+              <Undo2 size={15} />
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleRedo}
+              disabled={!canRedo}
+              className="h-8 w-8 p-0"
+              title="重做 (Ctrl+Shift+Z)"
+            >
+              <Redo2 size={15} />
+            </Button>
+            <Separator orientation="vertical" className="h-6" />
+            {/* 复制 / 保存 / 重置 / 清空 */}
             <Button
               size="sm"
               variant="outline"
@@ -176,8 +342,20 @@ const Index = () => {
               className="flex items-center gap-1"
             >
               <Copy size={14} />
-              复制
             </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleSaveDraft}
+              className="flex items-center gap-1"
+              title="保存草稿 (Ctrl+S)"
+            >
+              <Save size={14} />
+              <span className="hidden sm:inline">保存</span>
+            </Button>
+            {draftTimeStr && (
+              <span className="text-xs text-gray-400 whitespace-nowrap">{draftTimeStr} 已保存</span>
+            )}
             <Button
               size="sm"
               variant="outline"
@@ -185,7 +363,6 @@ const Index = () => {
               className="flex items-center gap-1"
             >
               <RotateCcw size={14} />
-              重置
             </Button>
             <Button
               size="sm"
@@ -203,7 +380,7 @@ const Index = () => {
             <CardContent className="p-0 h-full overflow-auto">
               <BlockEditor
                 blocks={blocks}
-                onChange={setBlocks}
+                onChange={setBlocksWithHistory}
                 onSelectBlock={handleSelectBlock}
                 selectedBlockId={selectedBlockId}
               />
@@ -212,49 +389,58 @@ const Index = () => {
         </div>
       </div>
 
-      {/* 右侧：预览区 */}
-      <div className="w-[520px] flex-shrink-0 bg-white border-l shadow-sm flex flex-col">
-        {/* 预览区头部 */}
-        <div className="p-3 border-b bg-gradient-to-r from-green-50 to-emerald-50 flex items-center justify-between">
-          <h2 className="font-bold text-gray-800 flex items-center gap-2">
-            <Sparkles size={18} className="text-green-600" />
-            实时预览
-          </h2>
-          <ImageGenerator>
-            <WechatStyleWrapper>
-              <BlocksPreview blocks={blocks} />
-            </WechatStyleWrapper>
-          </ImageGenerator>
+      {/* 配置区：选中自定义组件时显示 */}
+      {selectedBlock && (
+        <div className="w-80 flex-shrink-0 border-l border-r border-gray-200 shadow-sm">
+          <ComponentConfigPanel
+            block={selectedBlock}
+            onUpdate={handleUpdateBlockProps}
+            onClose={handleCloseDrawer}
+          />
         </div>
+      )}
 
-        {/* 预览内容 */}
-        <ScrollArea className="flex-1">
-          <div className="p-6">
-            <div className="preview-content-for-export overflow-hidden">
-              <div className="p-6">
-                <WechatStyleWrapper>
-                  <BlocksPreview blocks={blocks} />
-                </WechatStyleWrapper>
+      {/* 预览弹窗 */}
+      {showPreview && (
+        <>
+          <div className="fixed inset-0 bg-black/50 z-40" onClick={() => setShowPreview(false)} />
+          <div className="fixed inset-4 z-50 bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-3 border-b bg-gradient-to-r from-green-50 to-emerald-50">
+              <h2 className="font-bold text-gray-800 flex items-center gap-2">
+                <Sparkles size={18} className="text-green-600" />
+                实时预览
+              </h2>
+              <div className="flex items-center gap-2">
+                <ImageGenerator>
+                  <WechatStyleWrapper>
+                    <BlocksPreview blocks={blocks} />
+                  </WechatStyleWrapper>
+                </ImageGenerator>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0 hover:bg-white/60"
+                  onClick={() => setShowPreview(false)}
+                >
+                  <X size={18} />
+                </Button>
               </div>
             </div>
+            <ScrollArea className="flex-1">
+              <div className="flex justify-center p-8">
+                <div className="w-[420px] bg-white" style={{ boxShadow: '0 2px 20px rgba(0,0,0,0.08)' }}>
+                  <div className="preview-content-for-export overflow-hidden">
+                    <div className="p-6">
+                      <WechatStyleWrapper>
+                        <BlocksPreview blocks={blocks} />
+                      </WechatStyleWrapper>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </ScrollArea>
           </div>
-        </ScrollArea>
-
-        {/* 底部提示 */}
-        <div className="p-3 border-t bg-gray-50 text-center">
-          <p className="text-xs text-gray-500">
-            💡 点击右上角按钮生成高清图片
-          </p>
-        </div>
-      </div>
-
-      {/* 右侧抽屉配置面板 */}
-      {selectedBlock && (
-        <ComponentConfigDrawer
-          block={selectedBlock}
-          onUpdate={handleUpdateBlockProps}
-          onClose={handleCloseDrawer}
-        />
+        </>
       )}
 
       {/* 模板选择弹窗 */}
@@ -262,6 +448,11 @@ const Index = () => {
         open={showTemplatePicker}
         onClose={() => setShowTemplatePicker(false)}
         onApply={handleApplyTemplate}
+      />
+      <SaveTemplateDialog
+        open={showSaveTemplate}
+        onClose={() => setShowSaveTemplate(false)}
+        blocks={blocks}
       />
     </div>
   );
