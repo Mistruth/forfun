@@ -426,7 +426,7 @@ const Index = () => {
               <div className="flex justify-center p-8">
                 <div className="w-[420px] bg-white" style={{ boxShadow: '0 2px 20px rgba(0,0,0,0.08)' }}>
                   <div className="preview-content-for-export overflow-hidden">
-                    <div className="p-6">
+                    <div className="p-[0.8rem]">
                       <WechatStyleWrapper>
                         <BlocksPreview blocks={blocks} />
                       </WechatStyleWrapper>
