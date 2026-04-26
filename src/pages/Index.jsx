@@ -16,6 +16,15 @@ import SaveTemplateDialog from '@/components/SaveTemplateDialog';
 import BlocksPreview from '@/components/BlocksPreview';
 import WechatStyleWrapper from '@/components/WechatStyleWrapper';
 import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
 import { customComponents } from '@/components/CustomComponentDefinitions';
 import { loadDraft, saveDraft } from '@/lib/draftStore';
 
@@ -78,7 +87,8 @@ const Index = () => {
   const [showTemplatePicker, setShowTemplatePicker] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [showSaveTemplate, setShowSaveTemplate] = useState(false);
-  const importInputRef = useRef(null);
+  const [schemaDialogMode, setSchemaDialogMode] = useState(null);
+  const [schemaDraft, setSchemaDraft] = useState('');
 
   // 草稿：启动时尝试恢复
   const [draftSavedAt, setDraftSavedAt] = useState(() => loadDraft()?.savedAt || null);
@@ -193,6 +203,7 @@ const Index = () => {
   );
 
   const previewContent = useMemo(() => blocksToContent(blocks), [blocks]);
+  const schemaText = useMemo(() => JSON.stringify({ blocks }, null, 2), [blocks]);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(previewContent);
@@ -217,47 +228,36 @@ const Index = () => {
     toast.success('内容已清空');
   };
 
-  const handleExportBlocks = useCallback(() => {
-    try {
-      const payload = {
-        version: 1,
-        exportedAt: new Date().toISOString(),
-        blocks,
-      };
-      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      const date = new Date().toISOString().slice(0, 10);
-      link.href = url;
-      link.download = `wechat-article-${date}.json`;
-      link.click();
-      URL.revokeObjectURL(url);
-      toast.success('JSON 已导出');
-    } catch {
-      toast.error('导出失败');
-    }
-  }, [blocks]);
-
-  const handleImportClick = useCallback(() => {
-    importInputRef.current?.click();
+  const handleOpenImportSchema = useCallback(() => {
+    setSchemaDraft('');
+    setSchemaDialogMode('import');
   }, []);
 
-  const handleImportBlocks = useCallback(async (event) => {
-    const file = event.target.files?.[0];
-    event.target.value = '';
-    if (!file) return;
+  const handleOpenExportSchema = useCallback(() => {
+    setSchemaDialogMode('export');
+  }, []);
 
+  const handleImportSchema = useCallback(() => {
     try {
-      const text = await file.text();
-      const data = JSON.parse(text);
+      const data = JSON.parse(schemaDraft);
       const importedBlocks = normalizeImportedBlocks(data);
       setBlocksWithHistory(importedBlocks);
       setSelectedBlockId(null);
+      setSchemaDialogMode(null);
       toast.success(`已导入 ${importedBlocks.length} 个块`);
     } catch (error) {
       toast.error(error.message || '导入失败，请检查 JSON 格式');
     }
-  }, [setBlocksWithHistory]);
+  }, [schemaDraft, setBlocksWithHistory]);
+
+  const handleCopySchema = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(schemaText);
+      toast.success('Schema 已复制');
+    } catch {
+      toast.error('复制失败');
+    }
+  }, [schemaText]);
 
   const handleInsertComponent = useCallback((template, componentId, defaultProps) => {
     const newBlock = {
@@ -367,7 +367,7 @@ const Index = () => {
             <Button
               size="sm"
               variant="outline"
-              onClick={handleImportClick}
+              onClick={handleOpenImportSchema}
               className="flex items-center gap-1"
             >
               <Upload size={14} />
@@ -376,20 +376,13 @@ const Index = () => {
             <Button
               size="sm"
               variant="outline"
-              onClick={handleExportBlocks}
+              onClick={handleOpenExportSchema}
               className="flex items-center gap-1"
               disabled={blocks.length === 0}
             >
               <Download size={14} />
               <span className="hidden sm:inline">导出</span>
             </Button>
-            <input
-              ref={importInputRef}
-              type="file"
-              accept=".json,application/json"
-              className="hidden"
-              onChange={handleImportBlocks}
-            />
             <Separator orientation="vertical" className="h-6" />
             {/* 预览 */}
             <Button
@@ -543,6 +536,40 @@ const Index = () => {
         onClose={() => setShowSaveTemplate(false)}
         blocks={blocks}
       />
+      <Dialog open={Boolean(schemaDialogMode)} onOpenChange={(open) => !open && setSchemaDialogMode(null)}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>{schemaDialogMode === 'import' ? '导入 Schema' : '导出 Schema'}</DialogTitle>
+            <DialogDescription>
+              {schemaDialogMode === 'import'
+                ? '粘贴 blocks schema，支持 { "blocks": [...] } 或直接粘贴 blocks 数组。导入后会替换当前编辑器内容。'
+                : '当前文章的 blocks schema，可直接复制后交给 AI 修改或在其他环境导入。'}
+            </DialogDescription>
+          </DialogHeader>
+          <Textarea
+            value={schemaDialogMode === 'import' ? schemaDraft : schemaText}
+            onChange={(event) => setSchemaDraft(event.target.value)}
+            readOnly={schemaDialogMode !== 'import'}
+            placeholder='{"blocks":[...]}'
+            className="min-h-[420px] resize-none font-mono text-xs leading-relaxed"
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSchemaDialogMode(null)}>
+              关闭
+            </Button>
+            {schemaDialogMode === 'import' ? (
+              <Button onClick={handleImportSchema} disabled={!schemaDraft.trim()}>
+                导入
+              </Button>
+            ) : (
+              <Button onClick={handleCopySchema}>
+                <Copy size={14} className="mr-1" />
+                复制 Schema
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
