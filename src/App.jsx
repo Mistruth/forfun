@@ -1,6 +1,7 @@
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import React from "react";
 import { HashRouter, Routes, Route } from "react-router-dom";
 import { navItems } from "./nav-items";
 import templateStore from './lib/templateStore';
@@ -8,7 +9,9 @@ import templateStore from './lib/templateStore';
 const queryClient = new QueryClient();
 
 const App = () => {
-  templateStore.init();
+  React.useEffect(() => {
+    templateStore.init();
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>
