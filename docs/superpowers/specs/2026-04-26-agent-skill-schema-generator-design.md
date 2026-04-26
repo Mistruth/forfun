@@ -2,7 +2,7 @@
 
 ## 概述
 
-新增一个 Codex agent skill，用于把用户的自然语言诉求转成当前公众号长图编辑器可消费的 `blocks` schema。该 skill 不直接渲染图片，而是生成经过校验的模板 JSON；页面搭建引擎加载 JSON 后负责实时预览和 PNG/JPG 导出。
+新增一个 Codex agent skill，用于把用户的自然语言诉求转成当前公众号长图编辑器可消费的 `blocks` schema，并在无图形界面环境中调用导出脚本生成 PNG 长图。该 skill 不直接手写 HTML 或自行绘图；JSON 是内部中间产物，最终交付优先是图片文件。
 
 目标链路：
 
@@ -10,14 +10,16 @@
 用户诉求
   → agent skill 理解内容目标、受众、风格、素材约束
   → 生成标准 blocks / template JSON
-  → 页面搭建引擎导入或写入草稿
-  → 用户预览、微调、导出长图
+  → 无头浏览器加载页面搭建引擎并写入草稿
+  → 截取预览 DOM
+  → 输出 PNG 长图
 ```
 
 ## 设计目标
 
 - 让 AI 稳定输出当前编辑器可渲染的 `blocks` 数组，而不是自由发挥 HTML。
-- 让输出可以直接通过「模板导入」进入页面，也可以作为草稿写入 `localStorage.editor_draft`。
+- 让输出优先成为 PNG 长图，同时保留模板 JSON 作为可复现、可编辑的中间产物。
+- 让中间 JSON 可以直接通过「模板导入」进入页面，也可以作为草稿写入 `localStorage.editor_draft`。
 - 把组件 schema、风格策略、校验逻辑沉淀为 skill 资源，降低每次生成时的上下文成本。
 - 对图片、日期、价格、报名方式等不确定信息采用占位或显式标注，避免伪造。
 
@@ -61,7 +63,8 @@ skills/wechat-long-image-composer/
 │   └── output-contract.md
 └── scripts/
     ├── validate-blocks.mjs
-    └── package-template.mjs
+    ├── package-template.mjs
+    └── export-image.mjs
 ```
 
 ### `SKILL.md`
@@ -72,7 +75,8 @@ skills/wechat-long-image-composer/
 2. 选择文章类型、结构、配色、字体、组件组合
 3. 生成 `blocks`
 4. 调用 `scripts/validate-blocks.mjs` 校验
-5. 输出模板 JSON 或写入指定文件
+5. 调用仓库的 `scripts/export-image.mjs` 生成 PNG
+6. 输出图片路径，并可选保留模板 JSON 文件
 
 ### `references/block-schema.md`
 
@@ -134,6 +138,25 @@ skills/wechat-long-image-composer/
   "blocks": []
 }
 ```
+
+### `scripts/export-image.mjs`
+
+把模板 JSON 或裸 `blocks` 输入转换成图片：
+
+1. 读取 JSON 并提取 `blocks`
+2. 启动本地 Vite 页面，或连接用户指定的编辑器 URL
+3. 将 `blocks` 写入 `localStorage.editor_draft`
+4. 刷新页面，让现有 React 预览区渲染草稿
+5. 用 headless Chrome 截取 `.preview-content-for-export`
+6. 输出 PNG 文件
+
+示例：
+
+```bash
+pnpm export:image --input out/template.json
+```
+
+默认输出到 `~/Desktop/wechat-article.png`。该脚本复用现有页面渲染逻辑，因此图片效果与用户在编辑器预览区看到的效果一致。
 
 ## 中间语义模型
 
@@ -216,11 +239,21 @@ MVP 推荐：
 
 ### 当前可用接入方式
 
-#### 方式 A：模板导入
+#### 方式 A：无头图片导出（默认）
+
+Skill 默认生成临时模板 JSON，然后调用：
+
+```bash
+pnpm export:image --input <template-json>
+```
+
+这是“没有图形界面但直接拿到图片”的主链路，默认输出到桌面。页面仍然作为渲染引擎存在，只是由 headless Chrome 打开，不需要用户手动操作浏览器。
+
+#### 方式 B：模板导入
 
 生成 `version: 1` 的模板 JSON，用户在「模板选择 → 我的模板 → 导入模板」中导入。
 
-这是最稳的 MVP 接入方式，因为 `src/lib/templateStore.js` 已支持：
+这是可编辑兜底方式，因为 `src/lib/templateStore.js` 已支持：
 
 ```json
 {
@@ -232,7 +265,7 @@ MVP 推荐：
 }
 ```
 
-#### 方式 B：草稿注入
+#### 方式 C：草稿注入
 
 开发调试时可把 blocks 写入：
 
@@ -262,11 +295,21 @@ src/lib/aiSchemaGenerator.js
 4. `setBlocksWithHistory(generatedBlocks)`
 5. 自动打开预览
 
-该功能不应阻塞 skill MVP；skill 先服务于离线生成和模板导入。
+该功能不应阻塞 skill MVP；skill 先服务于离线生成图片，并保留模板导入作为用户微调入口。
 
 ## 输出契约
 
-Skill 最终输出优先使用模板 JSON：
+Skill 最终输出优先使用图片文件路径：
+
+```json
+{
+  "imagePath": "~/Desktop/wechat-article.png",
+  "templatePath": "out/wechat-article.template.json",
+  "placeholders": ["[集合点]", "[报名二维码]"]
+}
+```
+
+其中 `templatePath` 是可选的复现/二次编辑产物。模板 JSON 格式如下：
 
 ```json
 {
@@ -293,7 +336,7 @@ Skill 最终输出优先使用模板 JSON：
 }
 ```
 
-如用户明确要求“只要 blocks”，则输出：
+如用户明确要求“只要 JSON”或需要页面导入，则输出：
 
 ```json
 {
@@ -312,6 +355,7 @@ Skill 最终输出优先使用模板 JSON：
 生成后：
 
 - 运行 `validate-blocks.mjs`
+- 运行 `export-image.mjs` 并确认输出 PNG 文件存在且非空
 - 检查所有图片字段是否为空或来自用户提供素材
 - 检查所有 block ID 唯一
 - 检查色彩和字体是否统一
@@ -342,7 +386,8 @@ Skill 最终输出优先使用模板 JSON：
 4. Generate importable template JSON by default: `{ version, name, description, cover, blocks }`.
 5. Use empty image URLs unless the user supplied real URLs or local assets.
 6. Validate with `scripts/validate-blocks.mjs <json-file>` when writing a file.
-7. Return the final JSON or the file path, plus a short note describing unresolved placeholders.
+7. Export PNG with `pnpm export:image --input <json-file>`; default output is `~/Desktop/wechat-article.png`.
+8. Return the PNG path, optional template JSON path, plus a short note describing unresolved placeholders.
 ```
 
 ## 实施计划
@@ -352,14 +397,15 @@ Skill 最终输出优先使用模板 JSON：
 3. 新增 `composition-recipes.md` 和 `output-contract.md`。
 4. 实现 `validate-blocks.mjs`，先覆盖结构校验和组件字段校验。
 5. 实现 `package-template.mjs`，支持从裸 blocks 包装模板 JSON。
-6. 用 3 个样例请求验收：
+6. 实现或复用 `scripts/export-image.mjs`，支持无头 Chrome 直接导出 PNG。
+7. 用 3 个样例请求验收：
    - “生成一篇户外徒步活动招募长图”
    - “把这段产品介绍改成公众号长图”
    - “生成一个会议通知长图模板”
-7. 稳定后复制到 `~/.codex/skills` 并运行 `quick_validate.py`。
+8. 稳定后复制到 `~/.codex/skills` 并运行 `quick_validate.py`。
 
 ## MVP 边界
 
-本设计只完成 agent skill 和页面 schema 契约，不引入在线 LLM API，不改变现有页面导出流程。
+本设计完成 agent skill、页面 schema 契约和无头图片导出链路，不引入在线 LLM API，不改变现有用户侧页面导出流程。
 
-页面侧新增“AI 生成”按钮属于下一阶段产品化工作；MVP 通过模板 JSON 导入即可闭环。
+页面侧新增“AI 生成”按钮属于下一阶段产品化工作；MVP 通过 CLI/headless 导出 PNG 即可闭环，模板 JSON 导入作为可编辑兜底。
