@@ -3,8 +3,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { X, Plus, Trash2, Settings2, Eye, Bold, Italic, Underline, Upload, ImageIcon, Link, ChevronDown } from 'lucide-react';
+import { X, Plus, Trash2, Settings2, Bold, Italic, Underline, Upload, ImageIcon, Link, ChevronDown } from 'lucide-react';
 import { customComponents, FONT_FAMILY_OPTIONS } from './CustomComponentDefinitions';
+import { getImageObjectUrl, isImageRef, saveImageFile } from '@/lib/imageStore';
+import { toast } from 'sonner';
 
 /**
  * 右侧抽屉配置面板
@@ -15,22 +17,13 @@ import { customComponents, FONT_FAMILY_OPTIONS } from './CustomComponentDefiniti
 const ComponentConfigDrawer = ({ block, onUpdate, onClose }) => {
   const compDef = block ? customComponents.find(c => c.id === block.componentId) : null;
   const [localProps, setLocalProps] = useState({});
-  const [previewHtml, setPreviewHtml] = useState('');
 
   useEffect(() => {
     if (block && compDef) {
       const props = { ...compDef.defaultProps, ...(block.props || {}) };
       setLocalProps(props);
-      setPreviewHtml(compDef.renderFn(props));
     }
   }, [block?.id]);
-
-  // 实时更新预览
-  useEffect(() => {
-    if (compDef && Object.keys(localProps).length > 0) {
-      setPreviewHtml(compDef.renderFn(localProps));
-    }
-  }, [localProps]);
 
   const handleChange = (key, value) => {
     const newProps = { ...localProps, [key]: value };
@@ -78,19 +71,6 @@ const ComponentConfigDrawer = ({ block, onUpdate, onClose }) => {
               />
             );
           })}
-        </div>
-
-        {/* 底部预览 */}
-        <div className="border-t p-3 bg-gray-50">
-          <div className="flex items-center gap-1 mb-2">
-            <Eye size={13} className="text-gray-500" />
-            <span className="text-xs text-gray-500 font-medium">效果预览</span>
-          </div>
-          <div
-            className="bg-white rounded-lg border overflow-hidden"
-            style={{ transform: 'scale(0.85)', transformOrigin: 'top left', width: '117%' }}
-            dangerouslySetInnerHTML={{ __html: previewHtml }}
-          />
         </div>
       </div>
     </>
@@ -199,6 +179,14 @@ const FieldRenderer = ({ field, value, onChange }) => {
       {field.type === 'richSegments' && (
         <RichSegmentsEditor value={value || []} onChange={onChange} />
       )}
+
+      {field.type === 'listEditor' && (
+        <ListEditor value={value || []} onChange={onChange} />
+      )}
+
+      {field.type === 'statsEditor' && (
+        <StatsEditor value={value || []} onChange={onChange} />
+      )}
     </div>
   );
 };
@@ -256,14 +244,21 @@ const FontSelectField = ({ value, onChange }) => {
 const ImageUploadField = ({ value, onChange }) => {
   const [tab, setTab] = React.useState(value && value.startsWith('http') ? 'url' : 'upload');
   const [urlInput, setUrlInput] = React.useState(value && value.startsWith('http') ? value : '');
-  // 本地预览 dataURL，独立于 value，上传后立即显示
-  const [localPreview, setLocalPreview] = React.useState(value && value.startsWith('data:') ? value : '');
+  const [localPreview, setLocalPreview] = React.useState('');
   const fileInputRef = React.useRef(null);
   const [dragging, setDragging] = React.useState(false);
+  const [uploading, setUploading] = React.useState(false);
 
   // value 外部变化时同步（如切换 block 时）
   React.useEffect(() => {
-    if (value && value.startsWith('data:')) {
+    let cancelled = false;
+
+    if (isImageRef(value)) {
+      setTab('upload');
+      getImageObjectUrl(value).then((url) => {
+        if (!cancelled) setLocalPreview(url);
+      });
+    } else if (value && (value.startsWith('data:') || value.startsWith('blob:'))) {
       setLocalPreview(value);
       setTab('upload');
     } else if (value && value.startsWith('http')) {
@@ -273,17 +268,29 @@ const ImageUploadField = ({ value, onChange }) => {
     } else {
       setLocalPreview('');
     }
+
+    return () => {
+      cancelled = true;
+    };
   }, [value]);
 
-  const handleFile = (file) => {
+  const handleFile = async (file) => {
     if (!file || !file.type.startsWith('image/')) return;
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const result = e.target.result;
-      setLocalPreview(result); // 立即更新本地预览
-      onChange(result);
-    };
-    reader.readAsDataURL(file);
+    const previewUrl = URL.createObjectURL(file);
+    setLocalPreview(previewUrl);
+    setUploading(true);
+
+    try {
+      const imageRef = await saveImageFile(file);
+      onChange(imageRef);
+    } catch (e) {
+      console.error('图片保存失败:', e);
+      toast.error('图片保存失败，请重试');
+      URL.revokeObjectURL(previewUrl);
+      setLocalPreview('');
+    } finally {
+      setUploading(false);
+    }
   };
 
   const handleDrop = (e) => {
@@ -339,7 +346,9 @@ const ImageUploadField = ({ value, onChange }) => {
                 className="w-full rounded-xl object-cover max-h-40"
               />
               <div className="absolute inset-0 bg-black/0 hover:bg-black/30 rounded-xl transition-all flex items-center justify-center opacity-0 hover:opacity-100">
-                <span className="text-white text-xs font-medium bg-black/50 px-2 py-1 rounded-lg">点击更换图片</span>
+                <span className="text-white text-xs font-medium bg-black/50 px-2 py-1 rounded-lg">
+                  {uploading ? '保存中...' : '点击更换图片'}
+                </span>
               </div>
             </div>
           ) : (
@@ -396,7 +405,7 @@ const ImageUploadField = ({ value, onChange }) => {
       {/* 清除按钮 */}
       {value && (
         <button
-          onClick={() => { onChange(''); setUrlInput(''); }}
+          onClick={() => { onChange(''); setUrlInput(''); setLocalPreview(''); }}
           className="w-full text-xs text-gray-400 hover:text-red-400 transition-colors py-1"
         >
           清除图片
@@ -599,6 +608,103 @@ const RichSegmentsEditor = ({ value, onChange }) => {
   );
 };
 
+// ─── 列表编辑器 ────────────────────────────────────────────────
+
+const ListEditor = ({ value, onChange }) => {
+  const items = value && value.length > 0 ? value : [''];
+
+  const update = (idx, text) => {
+    const next = items.map((item, i) => i === idx ? text : item);
+    onChange(next);
+  };
+
+  const add = () => onChange([...items, '']);
+
+  const remove = (idx) => {
+    if (items.length === 1) return;
+    onChange(items.filter((_, i) => i !== idx));
+  };
+
+  return (
+    <div className="space-y-2">
+      {items.map((item, idx) => (
+        <div key={idx} className="flex items-center gap-2">
+          <span className="text-xs text-gray-400 w-5 text-right flex-shrink-0">{idx + 1}.</span>
+          <Input
+            value={item}
+            onChange={e => update(idx, e.target.value)}
+            placeholder={`列表项 ${idx + 1}`}
+            className="h-8 text-sm flex-1"
+          />
+          <button
+            onClick={() => remove(idx)}
+            disabled={items.length === 1}
+            className="h-7 w-7 rounded-md flex items-center justify-center text-gray-300 hover:text-red-400 hover:bg-red-50 transition-all disabled:opacity-30 flex-shrink-0"
+          >
+            <Trash2 size={12} />
+          </button>
+        </div>
+      ))}
+      <Button variant="outline" size="sm" className="w-full h-7 text-xs border-dashed" onClick={add}>
+        <Plus size={12} className="mr-1" />
+        添加项目
+      </Button>
+    </div>
+  );
+};
+
+// ─── 数据指标编辑器 ────────────────────────────────────────────────
+
+const StatsEditor = ({ value, onChange }) => {
+  const items = value && value.length > 0 ? value : [{ value: '', label: '' }];
+
+  const update = (idx, patch) => {
+    const next = items.map((item, i) => i === idx ? { ...item, ...patch } : item);
+    onChange(next);
+  };
+
+  const add = () => onChange([...items, { value: '', label: '' }]);
+
+  const remove = (idx) => {
+    if (items.length === 1) return;
+    onChange(items.filter((_, i) => i !== idx));
+  };
+
+  return (
+    <div className="space-y-2">
+      {items.map((item, idx) => (
+        <div key={idx} className="bg-gray-50 rounded-lg p-2 space-y-1.5 border border-gray-100">
+          <div className="flex items-center gap-2">
+            <Input
+              value={item.value}
+              onChange={e => update(idx, { value: e.target.value })}
+              placeholder="数值（如 15km）"
+              className="h-7 text-sm flex-1"
+            />
+            <button
+              onClick={() => remove(idx)}
+              disabled={items.length === 1}
+              className="h-6 w-6 rounded flex items-center justify-center text-gray-300 hover:text-red-400 transition-all disabled:opacity-30 flex-shrink-0"
+            >
+              <Trash2 size={11} />
+            </button>
+          </div>
+          <Input
+            value={item.label}
+            onChange={e => update(idx, { label: e.target.value })}
+            placeholder="标签（如 距离）"
+            className="h-7 text-sm"
+          />
+        </div>
+      ))}
+      <Button variant="outline" size="sm" className="w-full h-7 text-xs border-dashed" onClick={add}>
+        <Plus size={12} className="mr-1" />
+        添加数据项
+      </Button>
+    </div>
+  );
+};
+
 // ─── 工具函数 ────────────────────────────────────────────────
 
 const colorDotMap = {
@@ -617,5 +723,64 @@ function rgbaToHex(rgba) {
   const b = parseInt(match[3]).toString(16).padStart(2, '0');
   return `#${r}${g}${b}`;
 }
+
+// ─── 内联配置面板（用于桌面端编辑器和预览区之间） ──────────────
+
+export const ComponentConfigPanel = ({ block, onUpdate, onClose }) => {
+  const compDef = block ? customComponents.find(c => c.id === block.componentId) : null;
+  const [localProps, setLocalProps] = useState({});
+
+  useEffect(() => {
+    if (block && compDef) {
+      setLocalProps({ ...compDef.defaultProps, ...(block.props || {}) });
+    }
+  }, [block?.id]);
+
+  const handleChange = (key, value) => {
+    const newProps = { ...localProps, [key]: value };
+    setLocalProps(newProps);
+    onUpdate(block.id, newProps);
+  };
+
+  if (!block || !compDef) return null;
+
+  return (
+    <div className="h-full flex flex-col bg-white">
+      {/* 头部 */}
+      <div className="flex items-center justify-between px-4 py-3 border-b bg-gradient-to-r from-blue-50 to-indigo-50">
+        <div className="flex items-center gap-2">
+          <Settings2 size={18} className="text-blue-600" />
+          <div>
+            <h3 className="font-bold text-gray-800 text-sm">{compDef.name}</h3>
+            <p className="text-xs text-gray-500">实时配置，即时生效</p>
+          </div>
+        </div>
+        {onClose && (
+          <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-white/60" onClick={onClose}>
+            <X size={16} />
+          </Button>
+        )}
+      </div>
+
+      {/* 配置表单 */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {compDef.configFields.map(field => {
+          if (field.showWhen) {
+            const condVal = localProps[field.showWhen.key];
+            if (condVal !== field.showWhen.value) return null;
+          }
+          return (
+            <FieldRenderer
+              key={field.key}
+              field={field}
+              value={localProps[field.key]}
+              onChange={(val) => handleChange(field.key, val)}
+            />
+          );
+        })}
+      </div>
+    </div>
+  );
+};
 
 export default ComponentConfigDrawer;

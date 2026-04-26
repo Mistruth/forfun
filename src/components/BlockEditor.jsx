@@ -3,6 +3,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Trash2, ChevronUp, ChevronDown, Settings2, GripVertical } from 'lucide-react';
 import { customComponents } from './CustomComponentDefinitions';
+import { useResolvedBlocks } from '@/lib/useResolvedBlocks';
 
 /**
  * 块编辑器
@@ -11,6 +12,7 @@ import { customComponents } from './CustomComponentDefinitions';
 const BlockEditor = ({ blocks, onChange, onSelectBlock, selectedBlockId }) => {
   const dragSrcIdx = useRef(null);
   const [dragOverIdx, setDragOverIdx] = useState(null);
+  const resolvedBlocks = useResolvedBlocks(blocks);
 
   const updateBlock = useCallback((id, patch) => {
     onChange(blocks.map(b => b.id === id ? { ...b, ...patch } : b));
@@ -73,6 +75,7 @@ const BlockEditor = ({ blocks, onChange, onSelectBlock, selectedBlockId }) => {
   return (
     <div className="flex flex-col gap-3 p-4 pl-8">
       {blocks.map((block, idx) => {
+        const displayBlock = resolvedBlocks[idx] || block;
         const isSelected = selectedBlockId === block.id;
         const isDragOver = dragOverIdx === idx;
 
@@ -119,7 +122,7 @@ const BlockEditor = ({ blocks, onChange, onSelectBlock, selectedBlockId }) => {
         if (block.type === 'custom') {
           const compDef = customComponents.find(c => c.id === block.componentId);
           if (!compDef) return null;
-          const html = compDef.renderFn(block.props || compDef.defaultProps);
+          const html = compDef.renderFn(displayBlock.props || compDef.defaultProps);
 
           return (
             <div

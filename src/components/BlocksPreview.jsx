@@ -3,13 +3,16 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
 import { customComponents } from './CustomComponentDefinitions';
+import { useResolvedBlocks } from '@/lib/useResolvedBlocks';
 
 /**
  * 按块直接渲染预览，避免 base64 图片在字符串拼接时被截断
  * blocks: Array<{ id, type, content?, componentId?, props? }>
  */
 const BlocksPreview = ({ blocks }) => {
-  if (!blocks || blocks.length === 0) return null;
+  const resolvedBlocks = useResolvedBlocks(blocks || []);
+
+  if (!resolvedBlocks || resolvedBlocks.length === 0) return null;
 
   const exportBlockStyle = {
     display: 'flow-root',
@@ -19,7 +22,7 @@ const BlocksPreview = ({ blocks }) => {
 
   return (
     <>
-      {blocks.map((block) => {
+      {resolvedBlocks.map((block) => {
         if (block.type === 'markdown') {
           return (
             <div

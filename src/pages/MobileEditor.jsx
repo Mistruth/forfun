@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { toast } from 'sonner';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
@@ -19,6 +19,7 @@ import {
   Trash2, ChevronUp, ChevronDown, Download, Image as ImageIcon,
   Type, AlignLeft, Grid, ChevronDown as ChevronDownIcon, Scissors, BookmarkPlus,
 } from 'lucide-react';
+import { loadDraft, saveDraft } from '@/lib/draftStore';
 
 // ── id 生成 ──────────────────────────────────────────────────
 let _idCounter = 1;
@@ -29,7 +30,7 @@ const iconMap = { Grid, Type, AlignLeft, Image: ImageIcon };
 
 // ── 主页面 ───────────────────────────────────────────────────
 const MobileEditor = () => {
-  const [blocks, setBlocks] = useState([]);
+  const [blocks, setBlocks] = useState(() => loadDraft()?.blocks || []);
   const [selectedBlockId, setSelectedBlockId] = useState(null);
   // tab: 'edit' | 'preview' | 'components'
   const [tab, setTab] = useState('edit');
@@ -39,6 +40,18 @@ const MobileEditor = () => {
   const [showSliceDialog, setShowSliceDialog] = useState(false);
   const [showSaveTemplate, setShowSaveTemplate] = useState(false);
   const previewRef = useRef(null);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      try {
+        saveDraft(blocks);
+      } catch (e) {
+        console.warn('自动保存草稿失败:', e);
+      }
+    }, 600);
+
+    return () => window.clearTimeout(timer);
+  }, [blocks]);
 
   // 当前选中的自定义块（用于配置抽屉）
   const selectedBlock = useMemo(

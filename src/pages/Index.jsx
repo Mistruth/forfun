@@ -18,11 +18,11 @@ import BlocksPreview from '@/components/BlocksPreview';
 import WechatStyleWrapper from '@/components/WechatStyleWrapper';
 import { Button } from '@/components/ui/button';
 import { customComponents } from '@/components/CustomComponentDefinitions';
+import { loadDraft, saveDraft } from '@/lib/draftStore';
 
 let _idCounter = 1;
 const genId = () => `block_${Date.now()}_${_idCounter++}`;
 
-const DRAFT_KEY = 'editor_draft';
 const MAX_HISTORY = 50;
 
 const blocksToContent = (blocks) => {
@@ -35,23 +35,6 @@ const blocksToContent = (blocks) => {
     }
     return '';
   }).join('\n\n');
-};
-
-// ─── 草稿读写 ──────────────────────────────────────────────
-const loadDraft = () => {
-  try {
-    const raw = localStorage.getItem(DRAFT_KEY);
-    if (!raw) return null;
-    const { blocks, savedAt } = JSON.parse(raw);
-    if (Array.isArray(blocks)) return { blocks, savedAt };
-  } catch { /* ignore */ }
-  return null;
-};
-
-const saveDraft = (blocks) => {
-  const data = { blocks, savedAt: Date.now() };
-  localStorage.setItem(DRAFT_KEY, JSON.stringify(data));
-  return data.savedAt;
 };
 
 // ─── 主页面 ────────────────────────────────────────────────
@@ -135,6 +118,19 @@ const Index = () => {
     } catch {
       toast.error('保存失败，内容过大');
     }
+  }, [blocks]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      try {
+        const at = saveDraft(blocks);
+        setDraftSavedAt(at);
+      } catch (e) {
+        console.warn('自动保存草稿失败:', e);
+      }
+    }, 600);
+
+    return () => window.clearTimeout(timer);
   }, [blocks]);
 
   // ─── 键盘快捷键 ────────────────────────────────────────
