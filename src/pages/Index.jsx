@@ -8,10 +8,9 @@ import BlockEditor from '@/components/BlockEditor';
 import { ComponentConfigPanel } from '@/components/ComponentConfigDrawer';
 import {
   RotateCcw, Copy, PanelLeftClose, Sparkles, PanelLeft, ChevronLeft,
-  Smartphone, LayoutTemplate, Eye, X, Undo2, Redo2, Save, BookmarkPlus,
+  LayoutTemplate, Eye, X, Undo2, Redo2, Save, BookmarkPlus, Download, Upload,
 } from 'lucide-react';
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import TemplatePickerDialog from '@/components/TemplatePickerDialog';
 import SaveTemplateDialog from '@/components/SaveTemplateDialog';
 import BlocksPreview from '@/components/BlocksPreview';
@@ -37,14 +36,49 @@ const blocksToContent = (blocks) => {
   }).join('\n\n');
 };
 
+const normalizeImportedBlocks = (data) => {
+  const importedBlocks = Array.isArray(data) ? data : data?.blocks;
+  if (!Array.isArray(importedBlocks)) {
+    throw new Error('JSON 中未找到 blocks 数组');
+  }
+
+  return importedBlocks.map((block, index) => {
+    if (!block || typeof block !== 'object') {
+      throw new Error(`第 ${index + 1} 个块格式不正确`);
+    }
+
+    if (block.type === 'markdown') {
+      return {
+        id: block.id || genId(),
+        type: 'markdown',
+        content: typeof block.content === 'string' ? block.content : '',
+      };
+    }
+
+    if (block.type === 'custom') {
+      if (!block.componentId || typeof block.componentId !== 'string') {
+        throw new Error(`第 ${index + 1} 个自定义块缺少 componentId`);
+      }
+      return {
+        id: block.id || genId(),
+        type: 'custom',
+        componentId: block.componentId,
+        props: block.props && typeof block.props === 'object' ? block.props : {},
+      };
+    }
+
+    throw new Error(`第 ${index + 1} 个块类型不支持`);
+  });
+};
+
 // ─── 主页面 ────────────────────────────────────────────────
 const Index = () => {
-  const navigate = useNavigate();
   const [showComponentPanel, setShowComponentPanel] = useState(false);
   const [selectedBlockId, setSelectedBlockId] = useState(null);
   const [showTemplatePicker, setShowTemplatePicker] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [showSaveTemplate, setShowSaveTemplate] = useState(false);
+  const importInputRef = useRef(null);
 
   // 草稿：启动时尝试恢复
   const [draftSavedAt, setDraftSavedAt] = useState(() => loadDraft()?.savedAt || null);
@@ -183,6 +217,48 @@ const Index = () => {
     toast.success('内容已清空');
   };
 
+  const handleExportBlocks = useCallback(() => {
+    try {
+      const payload = {
+        version: 1,
+        exportedAt: new Date().toISOString(),
+        blocks,
+      };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      const date = new Date().toISOString().slice(0, 10);
+      link.href = url;
+      link.download = `wechat-article-${date}.json`;
+      link.click();
+      URL.revokeObjectURL(url);
+      toast.success('JSON 已导出');
+    } catch {
+      toast.error('导出失败');
+    }
+  }, [blocks]);
+
+  const handleImportClick = useCallback(() => {
+    importInputRef.current?.click();
+  }, []);
+
+  const handleImportBlocks = useCallback(async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      const importedBlocks = normalizeImportedBlocks(data);
+      setBlocksWithHistory(importedBlocks);
+      setSelectedBlockId(null);
+      toast.success(`已导入 ${importedBlocks.length} 个块`);
+    } catch (error) {
+      toast.error(error.message || '导入失败，请检查 JSON 格式');
+    }
+  }, [setBlocksWithHistory]);
+
   const handleInsertComponent = useCallback((template, componentId, defaultProps) => {
     const newBlock = {
       id: genId(),
@@ -291,12 +367,29 @@ const Index = () => {
             <Button
               size="sm"
               variant="outline"
-              onClick={() => navigate('/mobile')}
-              className="flex items-center gap-1 text-blue-600 border-blue-200 hover:bg-blue-50"
+              onClick={handleImportClick}
+              className="flex items-center gap-1"
             >
-              <Smartphone size={14} />
-              <span className="hidden sm:inline">移动端</span>
+              <Upload size={14} />
+              <span className="hidden sm:inline">导入</span>
             </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleExportBlocks}
+              className="flex items-center gap-1"
+              disabled={blocks.length === 0}
+            >
+              <Download size={14} />
+              <span className="hidden sm:inline">导出</span>
+            </Button>
+            <input
+              ref={importInputRef}
+              type="file"
+              accept=".json,application/json"
+              className="hidden"
+              onChange={handleImportBlocks}
+            />
             <Separator orientation="vertical" className="h-6" />
             {/* 预览 */}
             <Button
