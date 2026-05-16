@@ -17,6 +17,42 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
+import fangYuanUrl from '@/assets/AlimamaFangYuanTiVF/AlimamaFangYuanTiVF-Thin.woff2?url';
+import agileUrl from '@/assets/AlimamaAgileVF/AlimamaAgileVF-Thin.woff2?url';
+
+const toDataUrl = async (url) => {
+  const res = await fetch(url);
+  const blob = await res.blob();
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result);
+    reader.readAsDataURL(blob);
+  });
+};
+
+let _fontEmbedCSSCache = null;
+const getFontEmbedCSS = async () => {
+  if (_fontEmbedCSSCache) return _fontEmbedCSSCache;
+  const [fangYuanData, agileData] = await Promise.all([
+    toDataUrl(fangYuanUrl),
+    toDataUrl(agileUrl),
+  ]);
+  _fontEmbedCSSCache = `
+@font-face {
+  font-family: 'AlimamaFangYuanTi';
+  src: url(${fangYuanData}) format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+}
+@font-face {
+  font-family: 'AlimamaAgile';
+  src: url(${agileData}) format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+}`;
+  return _fontEmbedCSSCache;
+};
+
 const DEFAULT_SLICE_HEIGHT = 2000;
 
 const ImageGenerator = () => {
@@ -31,10 +67,12 @@ const ImageGenerator = () => {
 
     try {
       const element = previewElement;
+      const fontEmbedCSS = await getFontEmbedCSS();
       const options = {
         quality: 1,
         pixelRatio: 2,
         backgroundColor: '#ffffff',
+        fontEmbedCSS,
       };
 
       let dataUrl;
@@ -68,7 +106,8 @@ const ImageGenerator = () => {
     }
 
     try {
-      const options = { quality: 1, pixelRatio: 2, backgroundColor: '#ffffff' };
+      const fontEmbedCSS = await getFontEmbedCSS();
+      const options = { quality: 1, pixelRatio: 2, backgroundColor: '#ffffff', fontEmbedCSS };
       const blob = await toBlob(previewElement, {
         ...options,
         type: format === 'png' ? 'image/png' : 'image/jpeg',

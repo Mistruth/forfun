@@ -161,7 +161,8 @@ const outdoorHikingTemplate = {
       componentId: 'tip-box',
       props: {
         type: 'tip',
-        content: '🍽 本次活动包含餐食\n✔ 23日晚餐\n✔ 24日早餐\n✔ 24日午餐',
+        title: '费用包含',
+        content: '🍽 23日晚餐、24日早餐和午餐\n🏡 1日住宿（标准两人间）\n🛡️ 2日活动保险\n🚐 往返大巴车费（司机补助、过路费、燃油费）',
         customIcon: '',
         fontFamily: YOUYUAN,
       },
