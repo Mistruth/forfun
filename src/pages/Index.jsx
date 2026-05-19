@@ -7,8 +7,9 @@ import CustomComponentPanel from '@/components/CustomComponentPanel';
 import BlockEditor from '@/components/BlockEditor';
 import { ComponentConfigPanel } from '@/components/ComponentConfigDrawer';
 import {
-  RotateCcw, Copy, PanelLeftClose, Sparkles, PanelLeft, ChevronLeft,
+  Copy, PanelLeftClose, Sparkles, PanelLeft,
   LayoutTemplate, Eye, X, Undo2, Redo2, Save, BookmarkPlus, Download, Upload,
+  MoreHorizontal, Settings2,
 } from 'lucide-react';
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import TemplatePickerDialog from '@/components/TemplatePickerDialog';
@@ -16,6 +17,13 @@ import SaveTemplateDialog from '@/components/SaveTemplateDialog';
 import BlocksPreview from '@/components/BlocksPreview';
 import WechatStyleWrapper from '@/components/WechatStyleWrapper';
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {
   Dialog,
   DialogContent,
@@ -32,18 +40,6 @@ let _idCounter = 1;
 const genId = () => `block_${Date.now()}_${_idCounter++}`;
 
 const MAX_HISTORY = 50;
-
-const blocksToContent = (blocks) => {
-  return blocks.map(block => {
-    if (block.type === 'markdown') return block.content || '';
-    if (block.type === 'custom') {
-      const compDef = customComponents.find(c => c.id === block.componentId);
-      if (!compDef) return '';
-      return compDef.renderFn(block.props || compDef.defaultProps);
-    }
-    return '';
-  }).join('\n\n');
-};
 
 const normalizeImportedBlocks = (data) => {
   const importedBlocks = Array.isArray(data) ? data : data?.blocks;
@@ -82,7 +78,7 @@ const normalizeImportedBlocks = (data) => {
 
 // ─── 主页面 ────────────────────────────────────────────────
 const Index = () => {
-  const [showComponentPanel, setShowComponentPanel] = useState(false);
+  const [showComponentPanel, setShowComponentPanel] = useState(true);
   const [selectedBlockId, setSelectedBlockId] = useState(null);
   const [showTemplatePicker, setShowTemplatePicker] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
@@ -202,19 +198,7 @@ const Index = () => {
     [blocks, selectedBlockId],
   );
 
-  const previewContent = useMemo(() => blocksToContent(blocks), [blocks]);
   const schemaText = useMemo(() => JSON.stringify({ blocks }, null, 2), [blocks]);
-
-  const handleCopy = () => {
-    navigator.clipboard.writeText(previewContent);
-    toast.success('内容已复制到剪贴板');
-  };
-
-  const handleReset = () => {
-    setBlocksWithHistory([]);
-    setSelectedBlockId(null);
-    toast.success('已重置');
-  };
 
   const handleApplyTemplate = useCallback((templateBlocks) => {
     setBlocksWithHistory(templateBlocks);
@@ -298,28 +282,10 @@ const Index = () => {
   }, [draftSavedAt]);
 
   return (
-    <div className="h-screen flex bg-gray-100">
+    <div className="h-screen flex overflow-hidden bg-gray-100">
       {/* 最左侧：组件面板 */}
       {showComponentPanel && (
-        <div className="w-72 flex-shrink-0 bg-white border-r shadow-sm flex flex-col">
-          <div className="p-3 border-b bg-gradient-to-r from-blue-50 to-indigo-50 flex items-center justify-between">
-            <div>
-              <h2 className="font-bold text-gray-800 flex items-center gap-2">
-                <Sparkles size={18} className="text-blue-600" />
-                组件面板
-              </h2>
-              <p className="text-xs text-gray-500 mt-1">点击插入到编辑器</p>
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowComponentPanel(false)}
-              className="h-8 w-8 p-0 hover:bg-white/50"
-              title="收起面板"
-            >
-              <ChevronLeft size={18} />
-            </Button>
-          </div>
+        <div className="w-[clamp(240px,18vw,288px)] flex-shrink-0 bg-white border-r shadow-sm flex flex-col">
           <div className="flex-1 overflow-hidden">
             <CustomComponentPanel onInsert={handleInsertComponent} />
           </div>
@@ -330,7 +296,7 @@ const Index = () => {
       <div className="flex-1 flex flex-col min-w-0">
         {/* 编辑器头部 */}
         <div className="bg-white border-b px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 min-w-0">
             <Button
               variant={showComponentPanel ? 'outline' : 'default'}
               size="sm"
@@ -342,7 +308,7 @@ const Index = () => {
               <span className="hidden sm:inline">{showComponentPanel ? '收起面板' : '组件面板'}</span>
             </Button>
             <Separator orientation="vertical" className="h-6" />
-            <h2 className="font-bold text-gray-800">块编辑器</h2>
+            <h2 className="font-bold text-gray-800 truncate">块编辑器</h2>
           </div>
           <div className="flex items-center gap-2">
             <Button
@@ -356,37 +322,6 @@ const Index = () => {
             </Button>
             <Button
               size="sm"
-              variant="outline"
-              onClick={() => setShowSaveTemplate(true)}
-              className="flex items-center gap-1 text-blue-600 border-blue-200 hover:bg-blue-50"
-              disabled={blocks.length === 0}
-            >
-              <BookmarkPlus size={14} />
-              <span className="hidden sm:inline">存为模板</span>
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleOpenImportSchema}
-              className="flex items-center gap-1"
-            >
-              <Upload size={14} />
-              <span className="hidden sm:inline">导入</span>
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleOpenExportSchema}
-              className="flex items-center gap-1"
-              disabled={blocks.length === 0}
-            >
-              <Download size={14} />
-              <span className="hidden sm:inline">导出</span>
-            </Button>
-            <Separator orientation="vertical" className="h-6" />
-            {/* 预览 */}
-            <Button
-              size="sm"
               className="flex items-center gap-1 text-white bg-green-500 hover:bg-green-600"
               onClick={() => setShowPreview(true)}
             >
@@ -394,7 +329,6 @@ const Index = () => {
               <span className="hidden sm:inline">预览</span>
             </Button>
             <Separator orientation="vertical" className="h-6" />
-            {/* 撤销 / 重做 */}
             <Button
               size="sm"
               variant="outline"
@@ -416,15 +350,6 @@ const Index = () => {
               <Redo2 size={15} />
             </Button>
             <Separator orientation="vertical" className="h-6" />
-            {/* 复制 / 保存 / 重置 / 清空 */}
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleCopy}
-              className="flex items-center gap-1"
-            >
-              <Copy size={14} />
-            </Button>
             <Button
               size="sm"
               variant="outline"
@@ -438,27 +363,41 @@ const Index = () => {
             {draftTimeStr && (
               <span className="text-xs text-gray-400 whitespace-nowrap">{draftTimeStr} 已保存</span>
             )}
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleReset}
-              className="flex items-center gap-1"
-            >
-              <RotateCcw size={14} />
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleClear}
-            >
-              清空
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size="sm" variant="outline" className="h-8 w-8 p-0" title="更多操作">
+                  <MoreHorizontal size={16} />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-44">
+                <DropdownMenuItem onClick={() => setShowSaveTemplate(true)} disabled={blocks.length === 0}>
+                  <BookmarkPlus size={14} className="mr-2" />
+                  存为模板
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleOpenImportSchema}>
+                  <Upload size={14} className="mr-2" />
+                  导入 Schema
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleOpenExportSchema} disabled={blocks.length === 0}>
+                  <Download size={14} className="mr-2" />
+                  导出 Schema
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={handleClear}
+                  disabled={blocks.length === 0}
+                  className="text-red-600 focus:text-red-600"
+                >
+                  清空
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
 
         {/* 编辑器内容 */}
-        <div className="flex-1 overflow-hidden">
-          <Card className="h-full shadow-lg rounded-none border-0">
+        <div className="flex-1 overflow-hidden bg-gray-100">
+          <div className="h-full flex justify-center p-4">
+          <Card className="h-full w-[420px] max-w-full shadow-lg rounded-lg border border-gray-200 overflow-hidden">
             <CardContent className="p-0 h-full overflow-auto">
               <BlockEditor
                 blocks={blocks}
@@ -468,19 +407,33 @@ const Index = () => {
               />
             </CardContent>
           </Card>
+          </div>
         </div>
       </div>
 
-      {/* 配置区：选中自定义组件时显示 */}
-      {selectedBlock && (
-        <div className="w-80 flex-shrink-0 border-l border-r border-gray-200 shadow-sm">
+      {/* 配置区：常驻显示 */}
+      <div className="w-[clamp(340px,28vw,420px)] flex-shrink-0 border-l border-r border-gray-200 shadow-sm bg-white">
+        {selectedBlock ? (
           <ComponentConfigPanel
             block={selectedBlock}
             onUpdate={handleUpdateBlockProps}
             onClose={handleCloseDrawer}
           />
-        </div>
-      )}
+        ) : (
+          <div className="h-full flex flex-col bg-white">
+            <div className="flex items-center gap-2 px-4 py-3 border-b bg-gradient-to-r from-blue-50 to-indigo-50">
+              <Settings2 size={18} className="text-blue-600" />
+              <div>
+                <h3 className="font-bold text-gray-800 text-sm">配置面板</h3>
+                <p className="text-xs text-gray-500">选择中间组件后编辑样式和内容</p>
+              </div>
+            </div>
+            <div className="flex-1 flex items-center justify-center px-8 text-center text-sm text-gray-400">
+              从中间编辑区选择一个组件
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* 预览弹窗 */}
       {showPreview && (

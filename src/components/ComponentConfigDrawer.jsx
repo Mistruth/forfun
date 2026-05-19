@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { X, Plus, Trash2, Settings2, Bold, Italic, Underline, Upload, ImageIcon, Link, ChevronDown } from 'lucide-react';
+import { X, Plus, Trash2, Settings2, Bold, Italic, Underline, Upload, ImageIcon, Link, ChevronDown, Highlighter, RemoveFormatting } from 'lucide-react';
 import { customComponents, FONT_FAMILY_OPTIONS } from './CustomComponentDefinitions';
 import { getImageObjectUrl, isImageRef, saveImageFile } from '@/lib/imageStore';
 import { toast } from 'sonner';
@@ -178,6 +178,10 @@ const FieldRenderer = ({ field, value, onChange }) => {
 
       {field.type === 'richSegments' && (
         <RichSegmentsEditor value={value || []} onChange={onChange} />
+      )}
+
+      {field.type === 'richText' && (
+        <RichTextEditor value={value || ''} onChange={onChange} />
       )}
 
       {field.type === 'listEditor' && (
@@ -604,6 +608,85 @@ const RichSegmentsEditor = ({ value, onChange }) => {
         添加文本片段
       </Button>
       <p className="text-xs text-gray-400">多个片段拼接成完整段落，每段可独立设置格式</p>
+    </div>
+  );
+};
+
+// ─── 所见即所得富文本编辑器 ────────────────────────────────────────
+
+const RichTextEditor = ({ value, onChange }) => {
+  const editorRef = useRef(null);
+
+  useEffect(() => {
+    const editor = editorRef.current;
+    if (!editor || document.activeElement === editor) return;
+    if (editor.innerHTML !== value) {
+      editor.innerHTML = value || '';
+    }
+  }, [value]);
+
+  const syncValue = () => {
+    const editor = editorRef.current;
+    if (!editor) return;
+    onChange(editor.innerHTML);
+  };
+
+  const runCommand = (command, commandValue = null) => {
+    const editor = editorRef.current;
+    editor?.focus();
+    document.execCommand(command, false, commandValue);
+    syncValue();
+  };
+
+  const setLink = () => {
+    const url = window.prompt('请输入链接地址');
+    if (!url) return;
+    runCommand('createLink', url);
+  };
+
+  const toolbarButtonClass = 'h-8 w-8 rounded-md border border-gray-200 bg-white text-gray-600 hover:border-gray-400 hover:bg-gray-50 flex items-center justify-center transition-all';
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-1.5 flex-wrap rounded-lg border border-gray-200 bg-gray-50 p-2">
+        <button type="button" className={toolbarButtonClass} title="加粗" onClick={() => runCommand('bold')}>
+          <Bold size={14} />
+        </button>
+        <button type="button" className={toolbarButtonClass} title="斜体" onClick={() => runCommand('italic')}>
+          <Italic size={14} />
+        </button>
+        <button type="button" className={toolbarButtonClass} title="下划线" onClick={() => runCommand('underline')}>
+          <Underline size={14} />
+        </button>
+        <div className="w-px h-5 bg-gray-200 mx-0.5" />
+        <button type="button" className={toolbarButtonClass} title="高亮" onClick={() => runCommand('hiliteColor', '#dff4ea')}>
+          <Highlighter size={14} />
+        </button>
+        <input
+          type="color"
+          className="h-8 w-8 rounded-md border border-gray-200 bg-white p-1 cursor-pointer"
+          title="自定义高亮色"
+          onChange={(event) => runCommand('hiliteColor', event.target.value)}
+        />
+        <button type="button" className={toolbarButtonClass} title="插入链接" onClick={setLink}>
+          <Link size={14} />
+        </button>
+        <button type="button" className={toolbarButtonClass} title="清除格式" onClick={() => runCommand('removeFormat')}>
+          <RemoveFormatting size={14} />
+        </button>
+      </div>
+
+      <div
+        ref={editorRef}
+        contentEditable
+        suppressContentEditableWarning
+        onInput={syncValue}
+        onBlur={syncValue}
+        className="min-h-[180px] rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm leading-relaxed text-gray-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+        style={{ whiteSpace: 'pre-wrap' }}
+      />
+
+      <p className="text-xs text-gray-400">选中文本后使用上方工具栏设置格式，预览和导出会保留这些富文本样式</p>
     </div>
   );
 };

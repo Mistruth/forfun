@@ -2,31 +2,14 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Input } from '@/components/ui/input';
-import { 
-  Grid, Type, Square, Quote, Minus, List, AlignLeft, 
-  Image, MousePointer, Layout, BarChart, Sparkles,
-  Search, Plus, Eye
-} from 'lucide-react';
-import { customComponents, componentCategories } from './CustomComponentDefinitions';
-
-const iconMap = {
-  Grid, Type, Square, Quote, Minus, List, AlignLeft, 
-  Image, MousePointer, Layout, BarChart, Sparkles
-};
+import { Plus, Eye } from 'lucide-react';
+import { customComponents } from './CustomComponentDefinitions';
 
 const CustomComponentPanel = ({ onInsert }) => {
-  const [activeCategory, setActiveCategory] = useState('all');
-  const [searchTerm, setSearchTerm] = useState('');
   const [previewComponent, setPreviewComponent] = useState(null);
 
   // 过滤组件
-  const filteredComponents = customComponents.filter(comp => {
-    const matchCategory = activeCategory === 'all' || comp.category === activeCategory;
-    const matchSearch = comp.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                       comp.preview.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchCategory && matchSearch;
-  });
+  const filteredComponents = customComponents.filter(comp => !comp.hidden);
 
   const handleInsert = (component) => {
     onInsert(component.template, component.id, component.defaultProps);
@@ -34,78 +17,44 @@ const CustomComponentPanel = ({ onInsert }) => {
 
   return (
     <div className="flex flex-col h-full">
-      {/* 搜索栏 */}
-      <div className="p-3 border-b">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
-          <Input
-            placeholder="搜索组件..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-9 h-8 text-sm"
-          />
-        </div>
-      </div>
-
-      {/* 分类标签 */}
-      <div className="px-3 py-2 border-b">
-        <ScrollArea className="whitespace-nowrap">
-          <div className="flex gap-2">
-            {componentCategories.map(cat => {
-              const IconComponent = iconMap[cat.icon] || Grid;
-              return (
-                <Button
-                  key={cat.id}
-                  variant={activeCategory === cat.id ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setActiveCategory(cat.id)}
-                  className="h-7 px-3 text-xs shrink-0"
-                >
-                  <IconComponent size={12} className="mr-1" />
-                  {cat.name}
-                </Button>
-              );
-            })}
-          </div>
-        </ScrollArea>
-      </div>
-
       {/* 组件列表 */}
       <ScrollArea className="flex-1">
-        <div className="p-3 grid grid-cols-1 gap-2">
+        <div className="p-3 grid grid-cols-2 gap-2">
           {filteredComponents.map(comp => (
             <Card 
               key={comp.id} 
               className="group hover:shadow-md transition-all cursor-pointer border"
             >
-              <CardContent className="p-3">
-                <div className="flex items-start justify-between">
+              <CardContent className="p-2">
+                <div className="min-h-[108px] flex flex-col">
                   <div className="flex-1 min-w-0">
-                    <h4 className="font-medium text-sm text-gray-800 truncate">{comp.name}</h4>
-                    <p className="text-xs text-gray-500 mt-1 truncate">{comp.preview}</p>
-                    <span className="inline-block mt-2 text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded">
+                    <h4 className="font-medium text-sm text-gray-800 leading-tight line-clamp-2">{comp.name}</h4>
+                    <p className="text-xs text-gray-500 mt-1 leading-snug line-clamp-2">{comp.preview}</p>
+                  </div>
+                  <div className="mt-2 flex items-center justify-between gap-1">
+                    <span className="min-w-0 truncate text-[11px] bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">
                       {comp.category}
                     </span>
-                  </div>
-                  <div className="flex gap-1 ml-2 shrink-0">
+                    <div className="flex gap-1 shrink-0">
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-7 w-7 p-0"
+                      className="h-6 w-6 p-0"
                       onClick={() => setPreviewComponent(comp)}
                       title="预览"
                     >
-                      <Eye size={14} />
+                      <Eye size={12} />
                     </Button>
                     <Button
                       variant="default"
                       size="sm"
-                      className="h-7 w-7 p-0"
+                      className="h-6 w-6 p-0"
                       onClick={() => handleInsert(comp)}
                       title="插入"
                     >
-                      <Plus size={14} />
+                      <Plus size={12} />
                     </Button>
+                    </div>
                   </div>
                 </div>
               </CardContent>
@@ -113,7 +62,7 @@ const CustomComponentPanel = ({ onInsert }) => {
           ))}
           
           {filteredComponents.length === 0 && (
-            <div className="text-center py-8 text-gray-500">
+            <div className="col-span-2 text-center py-8 text-gray-500">
               <p className="text-sm">未找到匹配的组件</p>
             </div>
           )}

@@ -2,6 +2,13 @@ import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react'
 import { toast } from 'sonner';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { customComponents, componentCategories } from '@/components/CustomComponentDefinitions';
 import BlockEditor from '@/components/BlockEditor';
 import SaveTemplateDialog from '@/components/SaveTemplateDialog';
@@ -18,6 +25,7 @@ import {
   LayoutTemplate, Eye, Plus, Settings2, X, ChevronLeft,
   Trash2, ChevronUp, ChevronDown, Download, Image as ImageIcon,
   Type, AlignLeft, Grid, ChevronDown as ChevronDownIcon, Scissors, BookmarkPlus,
+  MoreHorizontal,
 } from 'lucide-react';
 import { loadDraft, saveDraft } from '@/lib/draftStore';
 
@@ -134,7 +142,7 @@ const MobileEditor = () => {
 
   // 过滤组件
   const filteredComponents = customComponents.filter(c =>
-    activeCategory === 'all' || c.category === activeCategory
+    !c.hidden && (activeCategory === 'all' || c.category === activeCategory)
   );
 
   return (
@@ -148,30 +156,52 @@ const MobileEditor = () => {
           </button>
           <span className="font-bold text-gray-800 text-sm">移动端编辑器</span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1">
           {tab === 'preview' && (
-            <>
-              <Button size="sm" variant="outline" className="h-7 text-xs px-2" onClick={() => handleExport('png')}>
-                <ImageIcon size={13} className="mr-1" /> PNG
-              </Button>
-              <Button size="sm" variant="outline" className="h-7 text-xs px-2" onClick={() => handleExport('jpg')}>
-                <Download size={13} className="mr-1" /> JPG
-              </Button>
-              <Button size="sm" variant="outline" className="h-7 text-xs px-2" onClick={() => setShowSliceDialog(true)}>
-                <Scissors size={13} className="mr-1" /> 分段
-              </Button>
-            </>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size="sm" className="h-8 text-xs px-3">
+                  <Download size={13} className="mr-1" /> 导出
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-36">
+                <DropdownMenuItem onClick={() => handleExport('png')}>
+                  <ImageIcon size={14} className="mr-2" />
+                  PNG 图片
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleExport('jpg')}>
+                  <Download size={14} className="mr-2" />
+                  JPG 图片
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => setShowSliceDialog(true)}>
+                  <Scissors size={14} className="mr-2" />
+                  分段导出
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           )}
-          <Button size="sm" variant="outline" className="h-7 text-xs px-2 text-blue-600 border-blue-200"
-            onClick={() => setShowSaveTemplate(true)} disabled={blocks.length === 0}>
-            <BookmarkPlus size={13} className="mr-1" /> 存为模板
-          </Button>
-          {blocks.length > 0 && (
-            <Button size="sm" variant="ghost" className="h-7 text-xs text-red-400 px-2"
-              onClick={() => { setBlocks([]); setSelectedBlockId(null); toast.success('已清空'); }}>
-              清空
-            </Button>
-          )}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="sm" variant="outline" className="h-8 w-8 p-0" title="更多操作">
+                <MoreHorizontal size={16} />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-36">
+              <DropdownMenuItem onClick={() => setShowSaveTemplate(true)} disabled={blocks.length === 0}>
+                <BookmarkPlus size={14} className="mr-2" />
+                存为模板
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                disabled={blocks.length === 0}
+                className="text-red-600 focus:text-red-600"
+                onClick={() => { setBlocks([]); setSelectedBlockId(null); toast.success('已清空'); }}
+              >
+                清空内容
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 

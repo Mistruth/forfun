@@ -102,6 +102,51 @@ const renderBodyText = (props) => {
   return `<p style="${pStyle} margin: 12px 0;">${html}</p>`;
 };
 
+const sanitizeRichTextHtml = (html = '') => {
+  return String(html)
+    .replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, '')
+    .replace(/<style[\s\S]*?>[\s\S]*?<\/style>/gi, '')
+    .replace(/<(iframe|object|embed|form|input|button|textarea|select|option|meta|link)[\s\S]*?>[\s\S]*?<\/\1>/gi, '')
+    .replace(/<(iframe|object|embed|form|input|button|textarea|select|option|meta|link)[^>]*\/?>/gi, '')
+    .replace(/\son\w+="[^"]*"/gi, '')
+    .replace(/\son\w+='[^']*'/gi, '')
+    .replace(/\son\w+=\S+/gi, '')
+    .replace(/href=(["'])\s*javascript:[\s\S]*?\1/gi, 'href="#"')
+    .replace(/src=(["'])\s*javascript:[\s\S]*?\1/gi, 'src=""');
+};
+
+const renderBodyTextNew = (props) => {
+  const {
+    contentHtml = '这是一段适合移动端阅读的正文。您可以直接选中文字设置<strong>加粗</strong>、<em>斜体</em>、<u>下划线</u>、高亮和链接。',
+    fontSize = '17',
+    lineHeight = '1.85',
+    hasBg = false,
+    bgCardColor = '#fafafa',
+    fontFamily = "'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif",
+  } = props;
+
+  const html = sanitizeRichTextHtml(contentHtml);
+  const contentStyle = [
+    `font-size: ${fontSize}px`,
+    `line-height: ${lineHeight}`,
+    'letter-spacing: 0.4px',
+    'color: #333',
+    'margin: 0',
+    'text-align: justify',
+    `font-family: ${fontFamily}`,
+  ].join('; ');
+
+  if (hasBg) {
+    return `<section style="margin: 16px 0; background: ${bgCardColor}; border-radius: 12px; padding: 14px 16px;">
+  <div style="${contentStyle};">${html}</div>
+</section>`;
+  }
+
+  return `<section style="margin: 12px 0;">
+  <div style="${contentStyle};">${html}</div>
+</section>`;
+};
+
 const renderImage = (props) => {
   const { url = '', alt = '', width = '100%', borderRadius = '8px', caption = '', captionFontFamily = "'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif" } = props;
   const imgStyle = `max-width: 100%; width: ${width}; border-radius: ${borderRadius}; display: block; margin: 0 auto;`;
@@ -444,6 +489,7 @@ export const customComponents = [
     name: '正文',
     category: '文本',
     icon: 'AlignLeft',
+    hidden: true,
     preview: '支持字号、行距、字体、背景卡片、富文本格式',
     defaultProps: {
       segments: [
@@ -465,6 +511,32 @@ export const customComponents = [
       { key: 'bgCardColor', label: '卡片背景色', type: 'color', showWhen: { key: 'hasBg', value: true } },
     ],
     get template() { return renderBodyText(this.defaultProps); }
+  },
+
+  {
+    id: 'body-new',
+    name: '正文',
+    category: '文本',
+    icon: 'AlignLeft',
+    preview: '使用所见即所得富文本编辑，支持加粗、斜体、下划线、高亮、链接',
+    defaultProps: {
+      contentHtml: '这是一段适合移动端阅读的正文。您可以直接选中文字设置<strong>加粗</strong>、<em>斜体</em>、<u>下划线</u>、高亮和链接。',
+      fontSize: '17',
+      lineHeight: '1.85',
+      hasBg: false,
+      bgCardColor: '#fafafa',
+      fontFamily: "'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif",
+    },
+    renderFn: renderBodyTextNew,
+    configFields: [
+      { key: 'contentHtml', label: '富文本正文', type: 'richText' },
+      { key: 'fontFamily', label: '字体', type: 'fontSelect' },
+      { key: 'fontSize', label: '字体大小（px）', type: 'stepper', min: 10, max: 28, step: 1 },
+      { key: 'lineHeight', label: '行距', type: 'stepper', min: 1.0, max: 3.0, step: 0.05, decimals: 2 },
+      { key: 'hasBg', label: '背景卡片', type: 'toggle' },
+      { key: 'bgCardColor', label: '卡片背景色', type: 'color', showWhen: { key: 'hasBg', value: true } },
+    ],
+    get template() { return renderBodyTextNew(this.defaultProps); }
   },
 
   // 图片组件
