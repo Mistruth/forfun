@@ -308,7 +308,7 @@ const Index = () => {
               <span className="hidden sm:inline">{showComponentPanel ? '收起面板' : '组件面板'}</span>
             </Button>
             <Separator orientation="vertical" className="h-6" />
-            <h2 className="font-bold text-gray-800 truncate">块编辑器</h2>
+            <h2 className="font-bold text-gray-800 truncate">公众号长图工具</h2>
           </div>
           <div className="flex items-center gap-2">
             <Button
