@@ -76,11 +76,10 @@ const renderSegments = (segments, fontFamily) => {
     if (seg.italic) style += 'font-style: italic;';
     if (seg.underline) style += 'text-decoration: underline;';
     if (seg.bgColor) style += `background: ${seg.bgColor}; padding: 1px 5px; border-radius: 3px;`;
-    const text = seg.text.replace(/\n/g, '<br/>');
     if (style) {
-      return `<span style="${style}">${text}</span>`;
+      return seg.text.split('\n').map(part => part ? `<span style="${style}">${part}</span>` : '').join('<br/>');
     }
-    return text;
+    return seg.text.replace(/\n/g, '<br/>');
   }).join('');
 };
 
