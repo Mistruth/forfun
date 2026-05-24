@@ -1,9 +1,14 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useEditor, EditorContent } from '@tiptap/react';
+import StarterKit from '@tiptap/starter-kit';
+import UnderlineExtension from '@tiptap/extension-underline';
+import Highlight from '@tiptap/extension-highlight';
+import LinkExtension from '@tiptap/extension-link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { X, Plus, Trash2, Settings2, Bold, Italic, Underline, Upload, ImageIcon, Link, ChevronDown, Highlighter, RemoveFormatting } from 'lucide-react';
+import { X, Plus, Trash2, Settings2, Bold, Italic, Underline, Upload, ImageIcon, Link as LinkIcon, ChevronDown, Highlighter, RemoveFormatting } from 'lucide-react';
 import { customComponents, FONT_FAMILY_OPTIONS } from './CustomComponentDefinitions';
 import { getImageObjectUrl, isImageRef, saveImageFile } from '@/lib/imageStore';
 import { toast } from 'sonner';
@@ -176,10 +181,6 @@ const FieldRenderer = ({ field, value, onChange }) => {
         <ImageUploadField value={value || ''} onChange={onChange} />
       )}
 
-      {field.type === 'richSegments' && (
-        <RichSegmentsEditor value={value || []} onChange={onChange} />
-      )}
-
       {field.type === 'richText' && (
         <RichTextEditor value={value || ''} onChange={onChange} />
       )}
@@ -326,7 +327,7 @@ const ImageUploadField = ({ value, onChange }) => {
             tab === 'url' ? 'bg-blue-500 text-white' : 'bg-white text-gray-500 hover:bg-gray-50'
           }`}
         >
-          <Link size={11} />
+          <LinkIcon size={11} />
           图片链接
         </button>
       </div>
@@ -455,238 +456,133 @@ const StepperField = ({ value, min, max, step, decimals, onChange }) => {
   );
 };
 
-// ─── 富文本片段编辑器 ────────────────────────────────────────────────
+// ─── Tiptap 富文本编辑器 ────────────────────────────────────────
 
-const defaultSegment = () => ({ text: '文本内容', bold: false, italic: false, underline: false, bgColor: '' });
+const DEFAULT_RICH_TEXT = '这是一段适合移动端阅读的正文。您可以直接选中文字设置<strong>加粗</strong>、<em>斜体</em>、<u>下划线</u>、高亮和链接。';
 
 const HIGHLIGHT_PRESETS = [
-  { label: '绿', color: 'rgba(88,187,144,0.35)' },
-  { label: '黄', color: 'rgba(255,193,7,0.4)' },
-  { label: '蓝', color: 'rgba(99,102,241,0.25)' },
-  { label: '红', color: 'rgba(239,68,68,0.25)' },
-  { label: '无', color: '' },
+  { label: '绿', color: '#dff4ea' },
+  { label: '黄', color: '#fff3bf' },
+  { label: '蓝', color: '#dbeafe' },
+  { label: '红', color: '#fee2e2' },
 ];
 
-const RichSegmentsEditor = ({ value, onChange }) => {
-  const segments = value && value.length > 0 ? value : [defaultSegment()];
+const toolbarButtonClass = (active = false) => `h-8 w-8 rounded-md border flex items-center justify-center transition-all ${
+  active
+    ? 'border-gray-800 bg-gray-800 text-white'
+    : 'border-gray-200 bg-white text-gray-600 hover:border-gray-400 hover:bg-gray-50'
+}`;
 
-  const update = (idx, patch) => {
-    const next = segments.map((s, i) => i === idx ? { ...s, ...patch } : s);
-    onChange(next);
-  };
-
-  const add = () => onChange([...segments, defaultSegment()]);
-
-  const remove = (idx) => {
-    if (segments.length === 1) return;
-    onChange(segments.filter((_, i) => i !== idx));
-  };
-
-  return (
-    <div className="space-y-2">
-      {segments.map((seg, idx) => (
-        <div key={idx} className="bg-gray-50 rounded-xl p-3 space-y-2 border border-gray-100">
-          {/* 文本内容 */}
-          <Textarea
-            value={seg.text}
-            onChange={e => update(idx, { text: e.target.value })}
-            placeholder="输入文本内容"
-            className="text-sm resize-none min-h-[56px] bg-white"
-          />
-
-          {/* 格式工具栏 */}
-          <div className="flex items-center gap-1.5 flex-wrap">
-            {/* 粗体 */}
-            <button
-              onClick={() => update(idx, { bold: !seg.bold })}
-              className={`h-7 w-7 rounded-md border flex items-center justify-center transition-all ${
-                seg.bold ? 'bg-gray-800 text-white border-gray-800' : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400'
-              }`}
-              title="粗体"
-            >
-              <Bold size={13} />
-            </button>
-
-            {/* 斜体 */}
-            <button
-              onClick={() => update(idx, { italic: !seg.italic })}
-              className={`h-7 w-7 rounded-md border flex items-center justify-center transition-all ${
-                seg.italic ? 'bg-gray-800 text-white border-gray-800' : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400'
-              }`}
-              title="斜体"
-            >
-              <Italic size={13} />
-            </button>
-
-            {/* 下划线 */}
-            <button
-              onClick={() => update(idx, { underline: !seg.underline })}
-              className={`h-7 w-7 rounded-md border flex items-center justify-center transition-all ${
-                seg.underline ? 'bg-gray-800 text-white border-gray-800' : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400'
-              }`}
-              title="下划线"
-            >
-              <Underline size={13} />
-            </button>
-
-            {/* 分隔 */}
-            <div className="w-px h-5 bg-gray-200 mx-0.5" />
-
-            {/* 背景色预设 */}
-            <span className="text-xs text-gray-400 mr-0.5">高亮</span>
-            {HIGHLIGHT_PRESETS.map(preset => (
-              <button
-                key={preset.label}
-                onClick={() => update(idx, { bgColor: preset.color })}
-                className={`h-6 w-6 rounded-md border-2 text-xs font-bold transition-all ${
-                  seg.bgColor === preset.color
-                    ? 'border-gray-600 scale-110'
-                    : 'border-transparent hover:border-gray-300'
-                }`}
-                style={{
-                  background: preset.color || '#f3f4f6',
-                  color: preset.color ? '#333' : '#aaa',
-                }}
-                title={preset.label === '无' ? '无背景色' : `${preset.label}色高亮`}
-              >
-                {preset.label}
-              </button>
-            ))}
-
-            {/* 自定义背景色 */}
-            <input
-              type="color"
-              value={rgbaToHex(seg.bgColor || '#ffffff')}
-              onChange={e => {
-                const hex = e.target.value;
-                // 转为 rgba 半透明
-                const r = parseInt(hex.slice(1, 3), 16);
-                const g = parseInt(hex.slice(3, 5), 16);
-                const b = parseInt(hex.slice(5, 7), 16);
-                update(idx, { bgColor: `rgba(${r},${g},${b},0.35)` });
-              }}
-              className="h-6 w-6 rounded border cursor-pointer p-0"
-              title="自定义背景色"
-            />
-
-            {/* 删除片段 */}
-            <button
-              onClick={() => remove(idx)}
-              disabled={segments.length === 1}
-              className="ml-auto h-6 w-6 rounded-md flex items-center justify-center text-gray-300 hover:text-red-400 hover:bg-red-50 transition-all disabled:opacity-30"
-              title="删除此片段"
-            >
-              <Trash2 size={12} />
-            </button>
-          </div>
-
-          {/* 片段预览 */}
-          <div className="text-xs text-gray-400 bg-white rounded px-2 py-1 border border-dashed border-gray-200 min-h-[24px]">
-            <span
-              style={{
-                fontWeight: seg.bold ? 700 : 400,
-                fontStyle: seg.italic ? 'italic' : 'normal',
-                textDecoration: seg.underline ? 'underline' : 'none',
-                background: seg.bgColor || 'transparent',
-                padding: seg.bgColor ? '1px 4px' : '0',
-                borderRadius: seg.bgColor ? '3px' : '0',
-              }}
-            >
-              {seg.text || '（空）'}
-            </span>
-          </div>
-        </div>
-      ))}
-
-      <Button
-        variant="outline"
-        size="sm"
-        className="w-full h-7 text-xs border-dashed"
-        onClick={add}
-      >
-        <Plus size={12} className="mr-1" />
-        添加文本片段
-      </Button>
-      <p className="text-xs text-gray-400">多个片段拼接成完整段落，每段可独立设置格式</p>
-    </div>
-  );
-};
-
-// ─── 所见即所得富文本编辑器 ────────────────────────────────────────
+const RichTextToolbarButton = ({ active, title, onClick, children }) => (
+  <button
+    type="button"
+    className={toolbarButtonClass(active)}
+    title={title}
+    onClick={onClick}
+  >
+    {children}
+  </button>
+);
 
 const RichTextEditor = ({ value, onChange }) => {
-  const editorRef = useRef(null);
+  const editor = useEditor({
+    extensions: [
+      StarterKit,
+      UnderlineExtension,
+      Highlight.configure({ multicolor: true }),
+      LinkExtension.configure({
+        openOnClick: false,
+        autolink: true,
+        defaultProtocol: 'https',
+        HTMLAttributes: {
+          target: '_blank',
+          rel: 'noopener noreferrer',
+        },
+      }),
+    ],
+    content: value || DEFAULT_RICH_TEXT,
+    editorProps: {
+      attributes: {
+        class: 'min-h-[180px] px-3 py-2 text-sm leading-relaxed text-gray-700 outline-none',
+      },
+    },
+    onUpdate: ({ editor }) => {
+      onChange(editor.getHTML());
+    },
+  });
 
   useEffect(() => {
-    const editor = editorRef.current;
-    if (!editor || document.activeElement === editor) return;
-    if (editor.innerHTML !== value) {
-      editor.innerHTML = value || '';
+    if (!editor || editor.isFocused) return;
+    const nextValue = value || DEFAULT_RICH_TEXT;
+    if (editor.getHTML() !== nextValue) {
+      editor.commands.setContent(nextValue, { emitUpdate: false });
     }
-  }, [value]);
-
-  const syncValue = () => {
-    const editor = editorRef.current;
-    if (!editor) return;
-    onChange(editor.innerHTML);
-  };
-
-  const runCommand = (command, commandValue = null) => {
-    const editor = editorRef.current;
-    editor?.focus();
-    document.execCommand(command, false, commandValue);
-    syncValue();
-  };
+  }, [editor, value]);
 
   const setLink = () => {
-    const url = window.prompt('请输入链接地址');
-    if (!url) return;
-    runCommand('createLink', url);
+    if (!editor) return;
+    const previousUrl = editor.getAttributes('link').href || '';
+    const url = window.prompt('请输入链接地址', previousUrl);
+
+    if (url === null) return;
+    if (url === '') {
+      editor.chain().focus().extendMarkRange('link').unsetLink().run();
+      return;
+    }
+
+    editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
   };
 
-  const toolbarButtonClass = 'h-8 w-8 rounded-md border border-gray-200 bg-white text-gray-600 hover:border-gray-400 hover:bg-gray-50 flex items-center justify-center transition-all';
+  if (!editor) return null;
 
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-1.5 flex-wrap rounded-lg border border-gray-200 bg-gray-50 p-2">
-        <button type="button" className={toolbarButtonClass} title="加粗" onClick={() => runCommand('bold')}>
+        <RichTextToolbarButton active={editor.isActive('bold')} title="加粗" onClick={() => editor.chain().focus().toggleBold().run()}>
           <Bold size={14} />
-        </button>
-        <button type="button" className={toolbarButtonClass} title="斜体" onClick={() => runCommand('italic')}>
+        </RichTextToolbarButton>
+        <RichTextToolbarButton active={editor.isActive('italic')} title="斜体" onClick={() => editor.chain().focus().toggleItalic().run()}>
           <Italic size={14} />
-        </button>
-        <button type="button" className={toolbarButtonClass} title="下划线" onClick={() => runCommand('underline')}>
+        </RichTextToolbarButton>
+        <RichTextToolbarButton active={editor.isActive('underline')} title="下划线" onClick={() => editor.chain().focus().toggleUnderline().run()}>
           <Underline size={14} />
-        </button>
+        </RichTextToolbarButton>
         <div className="w-px h-5 bg-gray-200 mx-0.5" />
-        <button type="button" className={toolbarButtonClass} title="高亮" onClick={() => runCommand('hiliteColor', '#dff4ea')}>
+        <RichTextToolbarButton active={editor.isActive('highlight')} title="高亮" onClick={() => editor.chain().focus().toggleHighlight({ color: '#dff4ea' }).run()}>
           <Highlighter size={14} />
-        </button>
+        </RichTextToolbarButton>
+        {HIGHLIGHT_PRESETS.map(preset => (
+          <button
+            key={preset.label}
+            type="button"
+            className="h-8 w-8 rounded-md border border-gray-200 text-xs font-bold text-gray-700 transition-all hover:border-gray-400"
+            style={{ background: preset.color }}
+            title={`${preset.label}色高亮`}
+            onClick={() => editor.chain().focus().setHighlight({ color: preset.color }).run()}
+          >
+            {preset.label}
+          </button>
+        ))}
         <input
           type="color"
           className="h-8 w-8 rounded-md border border-gray-200 bg-white p-1 cursor-pointer"
           title="自定义高亮色"
-          onChange={(event) => runCommand('hiliteColor', event.target.value)}
+          onChange={(event) => editor.chain().focus().setHighlight({ color: event.target.value }).run()}
         />
-        <button type="button" className={toolbarButtonClass} title="插入链接" onClick={setLink}>
-          <Link size={14} />
-        </button>
-        <button type="button" className={toolbarButtonClass} title="清除格式" onClick={() => runCommand('removeFormat')}>
+        <RichTextToolbarButton active={editor.isActive('link')} title="插入链接" onClick={setLink}>
+          <LinkIcon size={14} />
+        </RichTextToolbarButton>
+        <RichTextToolbarButton title="清除格式" onClick={() => editor.chain().focus().unsetAllMarks().clearNodes().run()}>
           <RemoveFormatting size={14} />
-        </button>
+        </RichTextToolbarButton>
       </div>
 
-      <div
-        ref={editorRef}
-        contentEditable
-        suppressContentEditableWarning
-        onInput={syncValue}
-        onBlur={syncValue}
-        className="min-h-[180px] rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm leading-relaxed text-gray-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
-        style={{ whiteSpace: 'pre-wrap' }}
+      <EditorContent
+        editor={editor}
+        className="rounded-xl border border-gray-200 bg-white focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100 [&_.ProseMirror_p]:my-2 [&_.ProseMirror_a]:text-blue-600 [&_.ProseMirror_a]:underline [&_.ProseMirror]:whitespace-pre-wrap"
       />
 
-      <p className="text-xs text-gray-400">选中文本后使用上方工具栏设置格式，预览和导出会保留这些富文本样式</p>
+      <p className="text-xs text-gray-400">基于 Tiptap 开源编辑器，预览和导出会保留富文本样式</p>
     </div>
   );
 };

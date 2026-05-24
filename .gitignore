@@ -1,5 +1,7 @@
 node_modules
 build
+dist
+.vercel/
 
 # 环境变量文件
 .env

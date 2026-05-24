@@ -66,42 +66,6 @@ const renderChapterTitle = (props) => {
 </section>`;
 };
 
-// 将富文本片段列表渲染成 HTML
-const renderSegments = (segments, fontFamily) => {
-  if (!segments || segments.length === 0) return '';
-  return segments.map(seg => {
-    let style = '';
-    if (fontFamily) style += `font-family: ${fontFamily};`;
-    if (seg.bold) style += 'font-weight: 700;';
-    if (seg.italic) style += 'font-style: italic;';
-    if (seg.underline) style += 'text-decoration: underline;';
-    if (seg.bgColor) style += `background: ${seg.bgColor}; padding: 1px 5px; border-radius: 3px;`;
-    if (style) {
-      return seg.text.split('\n').map(part => part ? `<span style="${style}">${part}</span>` : '').join('<br/>');
-    }
-    return seg.text.replace(/\n/g, '<br/>');
-  }).join('');
-};
-
-const renderBodyText = (props) => {
-  const {
-    segments = [{ text: '这是一段适合移动端阅读的正文。您可以在这里编写您的核心内容。', bold: false, italic: false, underline: false, bgColor: '' }],
-    fontSize = '17',
-    lineHeight = '1.85',
-    hasBg = false,
-    bgCardColor = '#fafafa',
-    fontFamily = "'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif",
-  } = props;
-  const html = renderSegments(segments, fontFamily);
-  const pStyle = `font-size: ${fontSize}px; line-height: ${lineHeight}; letter-spacing: 0.4px; color: #333; margin: 0; text-align: justify; font-family: ${fontFamily};`;
-  if (hasBg) {
-    return `<section style="margin: 16px 0; background: ${bgCardColor}; border-radius: 12px; padding: 14px 16px;">
-  <p style="${pStyle}">${html}</p>
-</section>`;
-  }
-  return `<p style="${pStyle} margin: 12px 0;">${html}</p>`;
-};
-
 const sanitizeRichTextHtml = (html = '') => {
   return String(html)
     .replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, '')
@@ -115,7 +79,7 @@ const sanitizeRichTextHtml = (html = '') => {
     .replace(/src=(["'])\s*javascript:[\s\S]*?\1/gi, 'src=""');
 };
 
-const renderBodyTextNew = (props) => {
+const renderBodyText = (props) => {
   const {
     contentHtml = '这是一段适合移动端阅读的正文。您可以直接选中文字设置<strong>加粗</strong>、<em>斜体</em>、<u>下划线</u>、高亮和链接。',
     fontSize = '17',
@@ -489,36 +453,7 @@ export const customComponents = [
     name: '正文',
     category: '文本',
     icon: 'AlignLeft',
-    hidden: true,
-    preview: '支持字号、行距、字体、背景卡片、富文本格式',
-    defaultProps: {
-      segments: [
-        { text: '这是一段适合移动端阅读的正文。您可以在这里编写您的核心内容。', bold: false, italic: false, underline: false, bgColor: '' },
-      ],
-      fontSize: '17',
-      lineHeight: '1.85',
-      hasBg: false,
-      bgCardColor: '#fafafa',
-      fontFamily: "'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif",
-    },
-    renderFn: renderBodyText,
-    configFields: [
-      { key: 'segments', label: '文本片段', type: 'richSegments' },
-      { key: 'fontFamily', label: '字体', type: 'fontSelect' },
-      { key: 'fontSize', label: '字体大小（px）', type: 'stepper', min: 10, max: 28, step: 1 },
-      { key: 'lineHeight', label: '行距', type: 'stepper', min: 1.0, max: 3.0, step: 0.05, decimals: 2 },
-      { key: 'hasBg', label: '背景卡片', type: 'toggle' },
-      { key: 'bgCardColor', label: '卡片背景色', type: 'color', showWhen: { key: 'hasBg', value: true } },
-    ],
-    get template() { return renderBodyText(this.defaultProps); }
-  },
-
-  {
-    id: 'body-new',
-    name: '正文',
-    category: '文本',
-    icon: 'AlignLeft',
-    preview: '使用所见即所得富文本编辑，支持加粗、斜体、下划线、高亮、链接',
+    preview: '使用 Tiptap 富文本编辑，支持加粗、斜体、下划线、高亮、链接',
     defaultProps: {
       contentHtml: '这是一段适合移动端阅读的正文。您可以直接选中文字设置<strong>加粗</strong>、<em>斜体</em>、<u>下划线</u>、高亮和链接。',
       fontSize: '17',
@@ -527,7 +462,7 @@ export const customComponents = [
       bgCardColor: '#fafafa',
       fontFamily: "'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif",
     },
-    renderFn: renderBodyTextNew,
+    renderFn: renderBodyText,
     configFields: [
       { key: 'contentHtml', label: '富文本正文', type: 'richText' },
       { key: 'fontFamily', label: '字体', type: 'fontSelect' },
@@ -536,7 +471,7 @@ export const customComponents = [
       { key: 'hasBg', label: '背景卡片', type: 'toggle' },
       { key: 'bgCardColor', label: '卡片背景色', type: 'color', showWhen: { key: 'hasBg', value: true } },
     ],
-    get template() { return renderBodyTextNew(this.defaultProps); }
+    get template() { return renderBodyText(this.defaultProps); }
   },
 
   // 图片组件
