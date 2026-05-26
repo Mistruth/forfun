@@ -386,9 +386,125 @@ const outdoorHikingTemplate = {
   ]
 };
 
+const cloneTemplateBlock = (block) => ({
+  ...block,
+  id: block.id.replace('tpl_', 'tpl_mutuo_'),
+  props: block.props ? JSON.parse(JSON.stringify(block.props)) : undefined,
+});
+
+const withContentHtml = (block, contentHtml, overrides = {}) => ({
+  ...block,
+  props: {
+    ...block.props,
+    ...overrides,
+    contentHtml,
+  },
+});
+
+// ─── 牟托羌寨车厘子采摘活动模板 ────────────────────────────────────────────────
+const mutuoCherryHikingTemplate = {
+  ...outdoorHikingTemplate,
+  id: "mutuo-cherry-hiking",
+  name: "牟托羌寨车厘子采摘",
+  description: "牟托羌寨轻徒步与高山车厘子采摘活动推文，保留默认户外活动模板章节与风格",
+  cover: "🍒",
+  blocks: outdoorHikingTemplate.blocks
+    .filter((sourceBlock) => !["tpl_body_6", "tpl_body_7"].includes(sourceBlock.id))
+    .map((sourceBlock) => {
+      const block = cloneTemplateBlock(sourceBlock);
+
+      switch (sourceBlock.id) {
+        case "tpl_body_2":
+          return withContentHtml(
+            block,
+            "牟托羌寨，位于阿坝州茂县，是一座依山而建的古老羌族村落。寨子四周青山环抱，碉楼矗立，石板路蜿蜒其间，保留着浓郁的羌族风情。初夏时节，满山的 <span style=\"font-weight: 700; background-color: rgba(62,207,142,0.2); padding: 1px 5px; border-radius: 3px\">高山车厘子</span> 挂满枝头，红得诱人∞",
+            {
+              hasBg: true,
+              bgCardColor: "rgba(62,207,142,0.06)",
+            }
+          );
+
+        case "tpl_body_3":
+          return withContentHtml(
+            block,
+            "沿着山谷轻徒步，吹着初夏山风，感受羌寨的慢节奏，再摘一筐甜到心里的车厘子—一这才是周末该有的样子。",
+            {
+              hasBg: false,
+              bgCardColor: "#fafafa",
+            }
+          );
+
+        case "tpl_title_4":
+          return {
+            ...block,
+            props: {
+              ...block.props,
+              title: "本周目的地 · DESTINATION",
+            },
+          };
+
+        case "tpl_body_10":
+          return withContentHtml(
+            block,
+            "<p><strong>活动时间：</strong>5月31日（周日）<strong><br>出发时间：</strong>早上8:00，桐梓林地铁口<strong><br>活动地点：</strong>牟托羌寨<strong><br>活动路线：</strong>预计11点左右到达羌寨，上午游玩寨子，午餐自行解决，下午可进园采摘购买。<strong><br>活动主题：</strong>休息徒步，采摘车厘子<strong><br>活动费用：110元/人</strong></p>",
+            {
+              lineHeight: "2.0",
+              hasBg: true,
+              bgCardColor: "rgba(62,207,142,0.06)",
+            }
+          );
+
+        case "tpl_tipbox_11":
+          return {
+            ...block,
+            props: {
+              ...block.props,
+              type: "tip",
+              content: "💰 费用包含\n☞ 往返大巴车费\n☞ 司机餐补\n☞ 一日徒步保险",
+            },
+          };
+
+        case "tpl_tipbox_12":
+          return {
+            ...block,
+            props: {
+              ...block.props,
+              type: "warning",
+              content: "💰 费用不包含\n☞ 徒步午餐\n☞ 所有自费项目",
+            },
+          };
+
+        case "tpl_body_13":
+          return withContentHtml(
+            block,
+            "<span style=\"font-weight: 700; background-color: rgba(62,207,142,0.2); padding: 1px 5px; border-radius: 3px\">🚌  08:00</span>  桐梓林地铁口集合出发<br><span style=\"font-weight: 700; background-color: rgba(62,207,142,0.2); padding: 1px 5px; border-radius: 3px\">🏔️  11:00</span>  预计到达牟托羌寨，上午游玩寨子<br><span style=\"font-weight: 700; background-color: rgba(62,207,142,0.2); padding: 1px 5px; border-radius: 3px\">🍱  12:00</span>  午餐自行解决，按现场节奏自由安排<br><span style=\"font-weight: 700; background-color: rgba(62,207,142,0.2); padding: 1px 5px; border-radius: 3px\">🍒  下午</span>  可进园采摘购买高山车厘子<br><span style=\"font-weight: 700; background-color: rgba(62,207,142,0.2); padding: 1px 5px; border-radius: 3px\">🏠  适时</span>  收队返程，期待下次山野再见 👋",
+            {
+              lineHeight: "2.0",
+              hasBg: false,
+              bgCardColor: "#fafafa",
+            }
+          );
+
+        case "tpl_body_25":
+          return withContentHtml(
+            block,
+            "<span style=\"font-weight: 700; font-style: italic; background-color: rgba(62,207,142,0.12); padding: 1px 5px; border-radius: 3px\">&quot;山野没有信号，但有更好的连接。&quot; 🌿</span><br><br>这个周末，牟托羌寨见！",
+            {
+              fontSize: "18",
+              lineHeight: "2.0",
+            }
+          );
+
+        default:
+          return block;
+      }
+    }),
+};
+
 // ─── 模板列表 ────────────────────────────────────────────────
 export const templates = [
   outdoorHikingTemplate,
+  mutuoCherryHikingTemplate,
 ];
 
 // 按分类分组
