@@ -8,21 +8,27 @@ fs.mkdirSync(uploadsDir, { recursive: true });
 
 const app = express();
 
-app.use(express.json({ limit: '2mb' }));
+const jsonParser = express.json({ limit: '2mb' });
 
-app.use((err, req, res, next) => {
+const jsonParseErrorHandler = (err, req, res, next) => {
   if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
     res.status(400).json({ error: '请求 JSON 格式不正确' });
     return;
   }
   next(err);
-});
+};
 
+app.use('/api/session', jsonParser);
+app.use('/api/session', jsonParseErrorHandler);
 app.get('/api/session', getSession);
 app.post('/api/session', createSession);
 app.delete('/api/session', destroySession);
 
 app.use('/api', requireAuth);
+app.use('/api', jsonParser);
+app.use('/api', jsonParseErrorHandler);
+
+// Mount future private API routers here.
 
 app.use('/api', (req, res) => {
   res.status(404).json({ error: '接口不存在' });
@@ -46,7 +52,9 @@ app.use((err, req, res, next) => {
     return;
   }
   console.error(err);
-  res.status(err.status || 500).json({ error: err.message || '服务器错误' });
+  const status = err.status || 500;
+  const message = status >= 400 && status < 500 ? err.message : '服务器错误';
+  res.status(status).json({ error: message || '服务器错误' });
 });
 
 app.listen(config.port, () => {
