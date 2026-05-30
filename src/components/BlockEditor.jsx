@@ -90,9 +90,9 @@ const BlockEditor = ({ blocks, onChange, onSelectBlock, selectedBlockId }) => {
               onDragOver={e => handleDragOver(e, idx)}
               onDragLeave={handleDragLeave}
               onDrop={e => handleDrop(e, idx)}
-              className={`group relative rounded-lg border-2 transition-all ${
-                isSelected ? 'border-blue-400 shadow-md' : 'border-transparent hover:border-gray-200'
-              } ${isDragOver ? 'border-blue-400 border-dashed bg-blue-50/50 scale-[1.01]' : ''}`}
+              className={`group relative rounded-lg border transition-colors ${
+                isSelected ? 'border-ring bg-muted/40' : 'border-transparent hover:border-border'
+              } ${isDragOver ? 'border-ring border-dashed bg-muted' : ''}`}
             >
               {/* 左侧拖拽把手 */}
               <DragHandle />
@@ -134,11 +134,11 @@ const BlockEditor = ({ blocks, onChange, onSelectBlock, selectedBlockId }) => {
               onDragOver={e => handleDragOver(e, idx)}
               onDragLeave={handleDragLeave}
               onDrop={e => handleDrop(e, idx)}
-              className={`group relative rounded-xl border-2 transition-all cursor-pointer ${
+              className={`group relative rounded-lg border transition-colors cursor-pointer ${
                 isSelected
-                  ? 'border-blue-400 shadow-lg ring-2 ring-blue-100'
-                  : 'border-transparent hover:border-blue-200 hover:shadow-md'
-              } ${isDragOver ? 'border-blue-400 border-dashed bg-blue-50/50 scale-[1.01]' : ''}`}
+                  ? 'border-ring bg-muted/40'
+                  : 'border-transparent hover:border-border'
+              } ${isDragOver ? 'border-ring border-dashed bg-muted' : ''}`}
               onClick={() => onSelectBlock(block.id)}
             >
               {/* 左侧拖拽把手 */}
@@ -146,7 +146,7 @@ const BlockEditor = ({ blocks, onChange, onSelectBlock, selectedBlockId }) => {
 
               {/* 组件类型标签 */}
               <div className={`absolute -top-3 left-3 z-10 transition-opacity ${isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
-                <span className="bg-blue-500 text-white text-xs px-2 py-0.5 rounded-full font-medium shadow-sm">
+                <span className="bg-primary text-primary-foreground text-xs px-2 py-0.5 rounded-md font-medium">
                   {compDef.name}
                 </span>
               </div>
@@ -171,7 +171,7 @@ const BlockEditor = ({ blocks, onChange, onSelectBlock, selectedBlockId }) => {
 
               {/* 选中时底部提示 */}
               {isSelected && (
-                <div className="absolute bottom-1 right-2 text-xs text-blue-400 flex items-center gap-1">
+                <div className="absolute bottom-1 right-2 text-xs text-muted-foreground flex items-center gap-1">
                   <Settings2 size={11} />
                   <span>右侧配置</span>
                 </div>
@@ -184,7 +184,7 @@ const BlockEditor = ({ blocks, onChange, onSelectBlock, selectedBlockId }) => {
       })}
 
       {blocks.length === 0 && (
-        <div className="text-center py-16 text-gray-400">
+        <div className="text-center py-16 text-muted-foreground">
           <p className="text-sm">编辑器为空，从左侧组件面板插入组件，或直接输入文字</p>
         </div>
       )}
@@ -199,7 +199,7 @@ const DragHandle = () => (
     onMouseDown={e => e.stopPropagation()}
     title="拖拽排序"
   >
-    <div className="w-5 h-8 flex items-center justify-center rounded-md hover:bg-gray-100 text-gray-300 hover:text-gray-500 transition-colors">
+    <div className="w-5 h-8 flex items-center justify-center rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
       <GripVertical size={15} />
     </div>
   </div>
@@ -214,7 +214,7 @@ const BlockToolbar = ({ isSelected, onDelete, onMoveUp, onMoveDown, onConfig, ca
       <Button
         variant="default"
         size="sm"
-        className="h-7 w-7 p-0 rounded-full shadow-md bg-blue-500 hover:bg-blue-600"
+        className="h-7 w-7 p-0 rounded-md bg-primary text-primary-foreground hover:bg-primary/80"
         onClick={onConfig}
         title="配置"
       >
@@ -224,7 +224,7 @@ const BlockToolbar = ({ isSelected, onDelete, onMoveUp, onMoveDown, onConfig, ca
     <Button
       variant="outline"
       size="sm"
-      className="h-7 w-7 p-0 rounded-full shadow-md bg-white"
+      className="h-7 w-7 p-0 rounded-md bg-background"
       onClick={onMoveUp}
       disabled={!canMoveUp}
       title="上移"
@@ -234,7 +234,7 @@ const BlockToolbar = ({ isSelected, onDelete, onMoveUp, onMoveDown, onConfig, ca
     <Button
       variant="outline"
       size="sm"
-      className="h-7 w-7 p-0 rounded-full shadow-md bg-white"
+      className="h-7 w-7 p-0 rounded-md bg-background"
       onClick={onMoveDown}
       disabled={!canMoveDown}
       title="下移"
@@ -244,7 +244,7 @@ const BlockToolbar = ({ isSelected, onDelete, onMoveUp, onMoveDown, onConfig, ca
     <Button
       variant="outline"
       size="sm"
-      className="h-7 w-7 p-0 rounded-full shadow-md bg-white hover:bg-red-50 hover:text-red-500 hover:border-red-200"
+      className="h-7 w-7 p-0 rounded-md bg-background hover:bg-destructive/10 hover:text-destructive hover:border-destructive/20"
       onClick={onDelete}
       title="删除"
     >

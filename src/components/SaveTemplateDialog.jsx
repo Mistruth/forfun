@@ -60,8 +60,8 @@ const SaveTemplateDialog = ({ open, onClose, blocks }) => {
         </DialogHeader>
         <div className="space-y-4 pt-2">
           <div>
-            <label className="text-sm font-medium text-gray-700 mb-1 block">
-              模板名称 <span className="text-red-500">*</span>
+            <label className="text-sm font-medium text-foreground mb-1 block">
+              模板名称 <span className="text-destructive">*</span>
             </label>
             <Input
               value={name}
@@ -71,7 +71,7 @@ const SaveTemplateDialog = ({ open, onClose, blocks }) => {
             />
           </div>
           <div>
-            <label className="text-sm font-medium text-gray-700 mb-1 block">模板描述</label>
+            <label className="text-sm font-medium text-foreground mb-1 block">模板描述</label>
             <Input
               value={description}
               onChange={(e) => setDescription(e.target.value)}
@@ -80,16 +80,16 @@ const SaveTemplateDialog = ({ open, onClose, blocks }) => {
             />
           </div>
           <div>
-            <label className="text-sm font-medium text-gray-700 mb-1 block">封面图标</label>
+            <label className="text-sm font-medium text-foreground mb-1 block">封面图标</label>
             <div className="flex gap-2 flex-wrap">
               {EMOJI_OPTIONS.map((emoji) => (
                 <button
                   key={emoji}
                   onClick={() => setCover(emoji)}
-                  className={`w-9 h-9 rounded-lg text-xl flex items-center justify-center transition-all ${
+                  className={`w-9 h-9 rounded-lg text-base flex items-center justify-center transition-colors ${
                     cover === emoji
-                      ? 'bg-green-100 ring-2 ring-green-400 scale-110'
-                      : 'bg-gray-50 hover:bg-gray-100'
+                      ? 'bg-muted ring-[3px] ring-ring/50'
+                      : 'bg-muted/60 hover:bg-muted'
                   }`}
                 >
                   {emoji}

@@ -19,20 +19,19 @@ const CustomComponentPanel = ({ onInsert }) => {
     <div className="flex flex-col h-full">
       {/* 组件列表 */}
       <ScrollArea className="flex-1">
-        <div className="p-3 grid grid-cols-2 gap-2">
+        <div className="p-2 grid grid-cols-2 gap-2">
           {filteredComponents.map(comp => (
-            <Card 
+            <Card
               key={comp.id} 
-              className="group hover:shadow-md transition-all cursor-pointer border"
+              className="group transition-colors cursor-pointer border shadow-none hover:bg-muted"
             >
-              <CardContent className="p-2">
-                <div className="min-h-[108px] flex flex-col">
+              <CardContent className="p-1.5">
+                <div className="min-h-[68px] flex flex-col">
                   <div className="flex-1 min-w-0">
-                    <h4 className="font-medium text-sm text-gray-800 leading-tight line-clamp-2">{comp.name}</h4>
-                    <p className="text-xs text-gray-500 mt-1 leading-snug line-clamp-2">{comp.preview}</p>
+                    <h4 className="font-medium text-sm leading-tight line-clamp-2">{comp.name}</h4>
                   </div>
-                  <div className="mt-2 flex items-center justify-between gap-1">
-                    <span className="min-w-0 truncate text-[11px] bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">
+                  <div className="mt-1.5 flex items-center justify-between gap-1">
+                    <span className="min-w-0 truncate text-xs bg-muted text-muted-foreground px-1.5 py-0.5 rounded">
                       {comp.category}
                     </span>
                     <div className="flex gap-1 shrink-0">
@@ -62,7 +61,7 @@ const CustomComponentPanel = ({ onInsert }) => {
           ))}
           
           {filteredComponents.length === 0 && (
-            <div className="col-span-2 text-center py-8 text-gray-500">
+            <div className="col-span-2 text-center py-8 text-muted-foreground">
               <p className="text-sm">未找到匹配的组件</p>
             </div>
           )}
@@ -72,16 +71,16 @@ const CustomComponentPanel = ({ onInsert }) => {
       {/* 预览弹窗 */}
       {previewComponent && (
         <div 
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+          className="fixed inset-0 bg-foreground/50 flex items-center justify-center z-50"
           onClick={() => setPreviewComponent(null)}
         >
           <Card 
-            className="max-w-lg w-full mx-4 max-h-[80vh] overflow-auto"
+            className="max-w-lg w-full mx-4 max-h-[80vh] overflow-auto shadow-none"
             onClick={e => e.stopPropagation()}
           >
             <CardContent className="p-4">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="font-bold text-lg">{previewComponent.name}</h3>
+                <h3 className="font-medium text-base">{previewComponent.name}</h3>
                 <Button 
                   variant="outline" 
                   size="sm"
@@ -91,7 +90,7 @@ const CustomComponentPanel = ({ onInsert }) => {
                 </Button>
               </div>
               <div 
-                className="bg-white border rounded-lg p-4 min-h-[100px]"
+                className="bg-background border rounded-lg p-4 min-h-[100px]"
                 dangerouslySetInnerHTML={{ __html: previewComponent.template }}
               />
               <div className="mt-4 flex gap-2">

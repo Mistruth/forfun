@@ -41,20 +41,20 @@ const ComponentConfigDrawer = ({ block, onUpdate, onClose }) => {
   return (
     <>
       {/* 遮罩层 */}
-      <div className="fixed inset-0 z-40 bg-black/10" onClick={onClose} />
+      <div className="fixed inset-0 z-40 bg-foreground/10" onClick={onClose} />
 
       {/* 抽屉主体 */}
-      <div className="fixed right-0 top-0 h-full w-80 bg-white shadow-2xl z-50 flex flex-col border-l border-gray-200 animate-slide-in-right">
+      <div className="fixed right-0 top-0 h-full w-80 bg-card z-50 flex flex-col border-l animate-slide-in-right">
         {/* 头部 */}
-        <div className="flex items-center justify-between px-4 py-3 border-b bg-gradient-to-r from-blue-50 to-indigo-50">
+        <div className="flex items-center justify-between px-4 py-3 border-b">
           <div className="flex items-center gap-2">
-            <Settings2 size={18} className="text-blue-600" />
+            <Settings2 size={18} className="text-muted-foreground" />
             <div>
-              <h3 className="font-bold text-gray-800 text-sm">{compDef.name}</h3>
-              <p className="text-xs text-gray-500">实时配置，即时生效</p>
+              <h3 className="font-medium text-sm">{compDef.name}</h3>
+              <p className="text-xs text-muted-foreground">实时配置，即时生效</p>
             </div>
           </div>
-          <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-white/60" onClick={onClose}>
+          <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={onClose}>
             <X size={16} />
           </Button>
         </div>
@@ -87,7 +87,7 @@ const ComponentConfigDrawer = ({ block, onUpdate, onClose }) => {
 const FieldRenderer = ({ field, value, onChange }) => {
   return (
     <div className="space-y-1.5">
-      <Label className="text-xs font-medium text-gray-700">{field.label}</Label>
+      <Label className="text-xs font-medium text-foreground">{field.label}</Label>
 
       {field.type === 'text' && (
         <Input
@@ -130,10 +130,10 @@ const FieldRenderer = ({ field, value, onChange }) => {
             <button
               key={opt.value}
               onClick={() => onChange(opt.value)}
-              className={`flex-1 py-1.5 text-xs rounded-lg border-2 transition-all font-medium ${
+              className={`flex-1 py-1.5 text-xs rounded-lg border transition-colors font-medium ${
                 value === opt.value
-                  ? 'border-blue-500 bg-blue-50 text-blue-700'
-                  : 'border-gray-200 hover:border-gray-300 text-gray-600'
+                  ? 'border-ring bg-muted text-foreground'
+                  : 'border-input hover:bg-muted text-muted-foreground hover:text-foreground'
               }`}
             >
               <span className="inline-block w-2 h-2 rounded-full mr-1" style={{ background: colorDotMap[opt.value] }} />
@@ -158,11 +158,11 @@ const FieldRenderer = ({ field, value, onChange }) => {
         <button
           onClick={() => onChange(!value)}
           className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-            value ? 'bg-blue-500' : 'bg-gray-200'
+            value ? 'bg-primary' : 'bg-muted'
           }`}
         >
           <span
-            className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+            className={`inline-block h-4 w-4 transform rounded-full bg-background border transition-transform ${
               value ? 'translate-x-6' : 'translate-x-1'
             }`}
           />
@@ -204,13 +204,13 @@ const SelectField = ({ value, options = [], onChange }) => {
       <select
         value={value || ''}
         onChange={e => onChange(e.target.value)}
-        className="w-full h-8 text-sm rounded-lg border border-gray-200 bg-white px-3 pr-8 appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400 transition-all"
+        className="w-full h-8 text-sm rounded-md border border-input bg-background px-3 pr-8 appearance-none cursor-pointer focus:outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 transition-colors"
       >
         {options.map(opt => (
           <option key={opt.value} value={opt.value}>{opt.label}</option>
         ))}
       </select>
-      <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+      <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
     </div>
   );
 };
@@ -225,17 +225,17 @@ const FontSelectField = ({ value, onChange }) => {
         <select
           value={value || FONT_FAMILY_OPTIONS[0].value}
           onChange={e => onChange(e.target.value)}
-          className="w-full h-8 text-sm rounded-lg border border-gray-200 bg-white px-3 pr-8 appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400 transition-all"
+          className="w-full h-8 text-sm rounded-md border border-input bg-background px-3 pr-8 appearance-none cursor-pointer focus:outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 transition-colors"
         >
           {FONT_FAMILY_OPTIONS.map(opt => (
             <option key={opt.value} value={opt.value}>{opt.label}</option>
           ))}
         </select>
-        <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+        <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
       </div>
       {/* 字体预览 */}
       <div
-        className="text-sm px-3 py-2 bg-gray-50 rounded-lg border border-dashed border-gray-200 text-gray-600 leading-relaxed"
+        className="text-sm px-3 py-2 bg-muted rounded-lg border border-dashed text-muted-foreground leading-relaxed"
         style={{ fontFamily: current.value }}
       >
         山野没有信号，但有更好的连接 ✨
@@ -311,11 +311,11 @@ const ImageUploadField = ({ value, onChange }) => {
   return (
     <div className="space-y-2">
       {/* Tab 切换 */}
-      <div className="flex rounded-lg border border-gray-200 overflow-hidden text-xs">
+      <div className="flex rounded-lg border overflow-hidden text-xs">
         <button
           onClick={() => setTab('upload')}
           className={`flex-1 py-1.5 flex items-center justify-center gap-1 transition-colors ${
-            tab === 'upload' ? 'bg-blue-500 text-white' : 'bg-white text-gray-500 hover:bg-gray-50'
+            tab === 'upload' ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:bg-muted hover:text-foreground'
           }`}
         >
           <Upload size={11} />
@@ -324,7 +324,7 @@ const ImageUploadField = ({ value, onChange }) => {
         <button
           onClick={() => setTab('url')}
           className={`flex-1 py-1.5 flex items-center justify-center gap-1 transition-colors ${
-            tab === 'url' ? 'bg-blue-500 text-white' : 'bg-white text-gray-500 hover:bg-gray-50'
+            tab === 'url' ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:bg-muted hover:text-foreground'
           }`}
         >
           <LinkIcon size={11} />
@@ -335,8 +335,8 @@ const ImageUploadField = ({ value, onChange }) => {
       {/* 本地上传区域 */}
       {tab === 'upload' && (
         <div
-          className={`relative border-2 border-dashed rounded-xl transition-all cursor-pointer ${
-            dragging ? 'border-blue-400 bg-blue-50' : 'border-gray-200 hover:border-blue-300 hover:bg-gray-50'
+          className={`relative border border-dashed rounded-lg transition-colors cursor-pointer ${
+            dragging ? 'border-ring bg-muted' : 'border-input hover:bg-muted'
           }`}
           onClick={() => fileInputRef.current?.click()}
           onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
@@ -348,22 +348,22 @@ const ImageUploadField = ({ value, onChange }) => {
               <img
                 src={localPreview}
                 alt="已上传"
-                className="w-full rounded-xl object-cover max-h-40"
+                className="w-full rounded-lg object-cover max-h-40"
               />
-              <div className="absolute inset-0 bg-black/0 hover:bg-black/30 rounded-xl transition-all flex items-center justify-center opacity-0 hover:opacity-100">
-                <span className="text-white text-xs font-medium bg-black/50 px-2 py-1 rounded-lg">
+              <div className="absolute inset-0 bg-foreground/0 hover:bg-foreground/30 rounded-lg transition-colors flex items-center justify-center opacity-0 hover:opacity-100">
+                <span className="text-background text-xs font-medium bg-foreground/50 px-2 py-1 rounded-lg">
                   {uploading ? '保存中...' : '点击更换图片'}
                 </span>
               </div>
             </div>
           ) : (
-            <div className="py-6 flex flex-col items-center gap-2 text-gray-400">
-              <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center">
-                <ImageIcon size={20} className="text-gray-300" />
+            <div className="py-6 flex flex-col items-center gap-2 text-muted-foreground">
+              <div className="w-10 h-10 rounded-md bg-muted flex items-center justify-center">
+                <ImageIcon size={20} className="text-muted-foreground" />
               </div>
               <div className="text-center">
-                <p className="text-xs font-medium text-gray-500">点击或拖拽上传图片</p>
-                <p className="text-xs text-gray-400 mt-0.5">支持 JPG、PNG、GIF、WebP</p>
+                <p className="text-xs font-medium text-foreground">点击或拖拽上传图片</p>
+                <p className="text-xs text-muted-foreground mt-0.5">支持 JPG、PNG、GIF、WebP</p>
               </div>
             </div>
           )}
@@ -400,7 +400,7 @@ const ImageUploadField = ({ value, onChange }) => {
             <img
               src={value}
               alt="预览"
-              className="w-full rounded-xl object-cover max-h-32 border"
+              className="w-full rounded-lg object-cover max-h-32 border"
               onError={e => { e.target.style.display = 'none'; }}
             />
           )}
@@ -411,7 +411,7 @@ const ImageUploadField = ({ value, onChange }) => {
       {value && (
         <button
           onClick={() => { onChange(''); setUrlInput(''); setLocalPreview(''); }}
-          className="w-full text-xs text-gray-400 hover:text-red-400 transition-colors py-1"
+          className="w-full text-xs text-muted-foreground hover:text-destructive transition-colors py-1"
         >
           清除图片
         </button>
@@ -436,7 +436,7 @@ const StepperField = ({ value, min, max, step, decimals, onChange }) => {
       <button
         onClick={decrease}
         disabled={numVal <= min}
-        className="h-8 w-8 rounded-lg border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-30 flex items-center justify-center text-lg font-medium transition-all"
+        className="h-8 w-8 rounded-md border border-input bg-background text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-30 flex items-center justify-center text-base font-medium transition-colors"
       >
         −
       </button>
@@ -448,7 +448,7 @@ const StepperField = ({ value, min, max, step, decimals, onChange }) => {
       <button
         onClick={increase}
         disabled={numVal >= max}
-        className="h-8 w-8 rounded-lg border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-30 flex items-center justify-center text-lg font-medium transition-all"
+        className="h-8 w-8 rounded-md border border-input bg-background text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-30 flex items-center justify-center text-base font-medium transition-colors"
       >
         +
       </button>
@@ -469,8 +469,8 @@ const HIGHLIGHT_PRESETS = [
 
 const toolbarButtonClass = (active = false) => `h-8 w-8 rounded-md border flex items-center justify-center transition-all ${
   active
-    ? 'border-gray-800 bg-gray-800 text-white'
-    : 'border-gray-200 bg-white text-gray-600 hover:border-gray-400 hover:bg-gray-50'
+    ? 'border-ring bg-primary text-primary-foreground'
+    : 'border-input bg-background text-muted-foreground hover:bg-muted hover:text-foreground'
 }`;
 
 const RichTextToolbarButton = ({ active, title, onClick, children }) => (
@@ -503,7 +503,7 @@ const RichTextEditor = ({ value, onChange }) => {
     content: value || DEFAULT_RICH_TEXT,
     editorProps: {
       attributes: {
-        class: 'min-h-[180px] px-3 py-2 text-sm leading-relaxed text-gray-700 outline-none',
+        class: 'min-h-[180px] px-3 py-2 text-sm leading-relaxed text-foreground outline-none',
       },
     },
     onUpdate: ({ editor }) => {
@@ -537,7 +537,7 @@ const RichTextEditor = ({ value, onChange }) => {
 
   return (
     <div className="space-y-2">
-      <div className="flex items-center gap-1.5 flex-wrap rounded-lg border border-gray-200 bg-gray-50 p-2">
+      <div className="flex items-center gap-1.5 flex-wrap rounded-lg border bg-muted p-2">
         <RichTextToolbarButton active={editor.isActive('bold')} title="加粗" onClick={() => editor.chain().focus().toggleBold().run()}>
           <Bold size={14} />
         </RichTextToolbarButton>
@@ -547,7 +547,7 @@ const RichTextEditor = ({ value, onChange }) => {
         <RichTextToolbarButton active={editor.isActive('underline')} title="下划线" onClick={() => editor.chain().focus().toggleUnderline().run()}>
           <Underline size={14} />
         </RichTextToolbarButton>
-        <div className="w-px h-5 bg-gray-200 mx-0.5" />
+        <div className="w-px h-5 bg-border mx-0.5" />
         <RichTextToolbarButton active={editor.isActive('highlight')} title="高亮" onClick={() => editor.chain().focus().toggleHighlight({ color: '#dff4ea' }).run()}>
           <Highlighter size={14} />
         </RichTextToolbarButton>
@@ -555,7 +555,7 @@ const RichTextEditor = ({ value, onChange }) => {
           <button
             key={preset.label}
             type="button"
-            className="h-8 w-8 rounded-md border border-gray-200 text-xs font-bold text-gray-700 transition-all hover:border-gray-400"
+            className="h-8 w-8 rounded-md border border-input text-xs font-medium text-foreground transition-colors hover:border-ring"
             style={{ background: preset.color }}
             title={`${preset.label}色高亮`}
             onClick={() => editor.chain().focus().setHighlight({ color: preset.color }).run()}
@@ -565,7 +565,7 @@ const RichTextEditor = ({ value, onChange }) => {
         ))}
         <input
           type="color"
-          className="h-8 w-8 rounded-md border border-gray-200 bg-white p-1 cursor-pointer"
+          className="h-8 w-8 rounded-md border border-input bg-background p-1 cursor-pointer"
           title="自定义高亮色"
           onChange={(event) => editor.chain().focus().setHighlight({ color: event.target.value }).run()}
         />
@@ -579,10 +579,10 @@ const RichTextEditor = ({ value, onChange }) => {
 
       <EditorContent
         editor={editor}
-        className="rounded-xl border border-gray-200 bg-white focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100 [&_.ProseMirror_p]:my-2 [&_.ProseMirror_a]:text-blue-600 [&_.ProseMirror_a]:underline [&_.ProseMirror]:whitespace-pre-wrap"
+        className="rounded-lg border bg-background focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50 [&_.ProseMirror_p]:my-2 [&_.ProseMirror_a]:text-info [&_.ProseMirror_a]:underline [&_.ProseMirror]:whitespace-pre-wrap"
       />
 
-      <p className="text-xs text-gray-400">基于 Tiptap 开源编辑器，预览和导出会保留富文本样式</p>
+      <p className="text-xs text-muted-foreground">基于 Tiptap 开源编辑器，预览和导出会保留富文本样式</p>
     </div>
   );
 };
@@ -608,7 +608,7 @@ const ListEditor = ({ value, onChange }) => {
     <div className="space-y-2">
       {items.map((item, idx) => (
         <div key={idx} className="flex items-center gap-2">
-          <span className="text-xs text-gray-400 w-5 text-right flex-shrink-0">{idx + 1}.</span>
+          <span className="text-xs text-muted-foreground w-5 text-right flex-shrink-0">{idx + 1}.</span>
           <Input
             value={item}
             onChange={e => update(idx, e.target.value)}
@@ -618,7 +618,7 @@ const ListEditor = ({ value, onChange }) => {
           <button
             onClick={() => remove(idx)}
             disabled={items.length === 1}
-            className="h-7 w-7 rounded-md flex items-center justify-center text-gray-300 hover:text-red-400 hover:bg-red-50 transition-all disabled:opacity-30 flex-shrink-0"
+            className="h-7 w-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-30 flex-shrink-0"
           >
             <Trash2 size={12} />
           </button>
@@ -652,7 +652,7 @@ const StatsEditor = ({ value, onChange }) => {
   return (
     <div className="space-y-2">
       {items.map((item, idx) => (
-        <div key={idx} className="bg-gray-50 rounded-lg p-2 space-y-1.5 border border-gray-100">
+        <div key={idx} className="bg-muted rounded-lg p-2 space-y-1.5 border">
           <div className="flex items-center gap-2">
             <Input
               value={item.value}
@@ -663,7 +663,7 @@ const StatsEditor = ({ value, onChange }) => {
             <button
               onClick={() => remove(idx)}
               disabled={items.length === 1}
-              className="h-6 w-6 rounded flex items-center justify-center text-gray-300 hover:text-red-400 transition-all disabled:opacity-30 flex-shrink-0"
+              className="h-6 w-6 rounded flex items-center justify-center text-muted-foreground hover:text-destructive transition-colors disabled:opacity-30 flex-shrink-0"
             >
               <Trash2 size={11} />
             </button>
@@ -724,18 +724,18 @@ export const ComponentConfigPanel = ({ block, onUpdate, onClose }) => {
   if (!block || !compDef) return null;
 
   return (
-    <div className="h-full flex flex-col bg-white">
+    <div className="h-full flex flex-col bg-card">
       {/* 头部 */}
-      <div className="flex items-center justify-between px-4 py-3 border-b bg-gradient-to-r from-blue-50 to-indigo-50">
+      <div className="flex items-center justify-between px-4 py-3 border-b">
         <div className="flex items-center gap-2">
-          <Settings2 size={18} className="text-blue-600" />
+          <Settings2 size={18} className="text-muted-foreground" />
           <div>
-            <h3 className="font-bold text-gray-800 text-sm">{compDef.name}</h3>
-            <p className="text-xs text-gray-500">实时配置，即时生效</p>
+            <h3 className="font-medium text-sm">{compDef.name}</h3>
+            <p className="text-xs text-muted-foreground">实时配置，即时生效</p>
           </div>
         </div>
         {onClose && (
-          <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-white/60" onClick={onClose}>
+          <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={onClose}>
             <X size={16} />
           </Button>
         )}

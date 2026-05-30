@@ -146,15 +146,15 @@ const MobileEditor = () => {
   );
 
   return (
-    <div className="h-screen flex flex-col bg-gray-50 overflow-hidden">
+    <div className="h-screen flex flex-col bg-background text-foreground overflow-hidden">
 
       {/* ── 顶部导航栏 ── */}
-      <div className="flex-shrink-0 bg-white border-b px-4 py-3 flex items-center justify-between shadow-sm">
+      <div className="flex-shrink-0 bg-card border-b px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <button onClick={() => window.history.back()} className="text-gray-400 hover:text-gray-600 transition-colors">
+          <button onClick={() => window.history.back()} className="text-muted-foreground hover:text-foreground transition-colors">
             <ChevronLeft size={20} />
           </button>
-          <span className="font-bold text-gray-800 text-sm">移动端编辑器</span>
+          <span className="font-medium text-sm">移动端编辑器</span>
         </div>
         <div className="flex items-center gap-1">
           {tab === 'preview' && (
@@ -195,7 +195,7 @@ const MobileEditor = () => {
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 disabled={blocks.length === 0}
-                className="text-red-600 focus:text-red-600"
+                className="text-destructive focus:text-destructive"
                 onClick={() => { setBlocks([]); setSelectedBlockId(null); toast.success('已清空'); }}
               >
                 清空内容
@@ -212,13 +212,13 @@ const MobileEditor = () => {
         {tab === 'edit' && (
           <div className="h-full overflow-auto">
             {blocks.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full gap-4 text-gray-400 px-8">
-                <div className="w-16 h-16 rounded-2xl bg-gray-100 flex items-center justify-center">
-                  <LayoutTemplate size={28} className="text-gray-300" />
+              <div className="flex flex-col items-center justify-center h-full gap-4 text-muted-foreground px-8">
+                <div className="w-16 h-16 rounded-lg bg-muted flex items-center justify-center">
+                  <LayoutTemplate size={28} className="text-muted-foreground" />
                 </div>
                 <div className="text-center">
-                  <p className="text-sm font-medium text-gray-500">编辑器为空</p>
-                  <p className="text-xs text-gray-400 mt-1">点击下方「+」按钮添加组件</p>
+                  <p className="text-sm font-medium text-foreground">编辑器为空</p>
+                  <p className="text-xs text-muted-foreground mt-1">点击下方「+」按钮添加组件</p>
                 </div>
                 <Button
                   className="mt-2 rounded-full px-6"
@@ -248,7 +248,7 @@ const MobileEditor = () => {
                     <BlocksPreview blocks={blocks} />
                   </WechatStyleWrapper>
                   {blocks.length === 0 && (
-                    <div className="py-12 text-center text-gray-300 text-sm">暂无内容</div>
+                    <div className="py-12 text-center text-muted-foreground text-sm">暂无内容</div>
                   )}
                 </div>
               </div>
@@ -258,12 +258,12 @@ const MobileEditor = () => {
       </div>
 
       {/* ── 底部 Tab 导航 ── */}
-      <div className="flex-shrink-0 bg-white border-t shadow-lg">
+      <div className="flex-shrink-0 bg-card border-t">
         <div className="flex items-center">
           <button
             onClick={() => setTab('edit')}
             className={`flex-1 py-3 flex flex-col items-center gap-0.5 transition-colors ${
-              tab === 'edit' ? 'text-blue-600' : 'text-gray-400'
+              tab === 'edit' ? 'text-foreground font-medium' : 'text-muted-foreground hover:text-foreground'
             }`}
           >
             <LayoutTemplate size={20} />
@@ -274,7 +274,7 @@ const MobileEditor = () => {
           <div className="px-4">
             <button
               onClick={() => setShowComponentSheet(true)}
-              className="w-14 h-14 -mt-5 rounded-full bg-blue-500 hover:bg-blue-600 active:scale-95 text-white shadow-lg flex items-center justify-center transition-all"
+              className="w-14 h-14 -mt-5 rounded-full bg-primary hover:bg-primary/80 text-primary-foreground flex items-center justify-center transition-colors"
             >
               <Plus size={26} />
             </button>
@@ -283,7 +283,7 @@ const MobileEditor = () => {
           <button
             onClick={() => setTab('preview')}
             className={`flex-1 py-3 flex flex-col items-center gap-0.5 transition-colors ${
-              tab === 'preview' ? 'text-blue-600' : 'text-gray-400'
+              tab === 'preview' ? 'text-foreground font-medium' : 'text-muted-foreground hover:text-foreground'
             }`}
           >
             <Eye size={20} />
@@ -296,16 +296,16 @@ const MobileEditor = () => {
       {showComponentSheet && (
         <>
           <div
-            className="fixed inset-0 bg-black/40 z-40"
+            className="fixed inset-0 bg-foreground/40 z-40"
             onClick={() => setShowComponentSheet(false)}
           />
-          <div className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-2xl shadow-2xl animate-slide-up">
+          <div className="fixed bottom-0 left-0 right-0 z-50 bg-card border-t rounded-t-lg animate-slide-up">
             {/* 弹层头部 */}
             <div className="flex items-center justify-between px-4 pt-4 pb-2">
-              <h3 className="font-bold text-gray-800">选择组件</h3>
+              <h3 className="font-medium text-base">选择组件</h3>
               <button
                 onClick={() => setShowComponentSheet(false)}
-                className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center text-gray-500"
+                className="w-7 h-7 rounded-md bg-muted hover:bg-muted/80 flex items-center justify-center text-muted-foreground transition-colors"
               >
                 <X size={15} />
               </button>
@@ -316,7 +316,7 @@ const MobileEditor = () => {
               {/* 文本块特殊入口 */}
               <button
                 onClick={handleInsertMarkdown}
-                className="shrink-0 px-3 py-1.5 rounded-full text-xs font-medium border-2 border-dashed border-gray-300 text-gray-500 hover:border-blue-400 hover:text-blue-500 transition-all"
+                className="shrink-0 px-3 py-1.5 rounded-md text-xs font-medium border border-dashed border-input text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
               >
                 + 文本块
               </button>
@@ -328,8 +328,8 @@ const MobileEditor = () => {
                     onClick={() => setActiveCategory(cat.id)}
                     className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all flex items-center gap-1 ${
                       activeCategory === cat.id
-                        ? 'bg-blue-500 text-white'
-                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground'
                     }`}
                   >
                     <Icon size={11} />
@@ -340,16 +340,15 @@ const MobileEditor = () => {
             </div>
 
             {/* 组件列表 */}
-            <div className="px-4 pb-6 grid grid-cols-2 gap-3 max-h-64 overflow-y-auto">
+            <div className="px-4 pb-6 grid grid-cols-2 gap-2 max-h-64 overflow-y-auto">
               {filteredComponents.map(comp => (
                 <button
                   key={comp.id}
                   onClick={() => handleInsertComponent(comp.id, comp.defaultProps)}
-                  className="text-left p-3 rounded-xl border border-gray-100 bg-gray-50 hover:bg-blue-50 hover:border-blue-200 active:scale-95 transition-all"
+                  className="text-left p-2 rounded-lg border bg-card hover:bg-muted transition-colors"
                 >
-                  <div className="font-medium text-sm text-gray-800">{comp.name}</div>
-                  <div className="text-xs text-gray-400 mt-0.5 line-clamp-2">{comp.preview}</div>
-                  <span className="inline-block mt-1.5 text-xs bg-white border border-gray-200 text-gray-500 px-1.5 py-0.5 rounded">
+                  <div className="font-medium text-sm">{comp.name}</div>
+                  <span className="inline-block mt-1.5 text-xs bg-muted text-muted-foreground px-1.5 py-0.5 rounded">
                     {comp.category}
                   </span>
                 </button>
@@ -371,19 +370,19 @@ const MobileEditor = () => {
       {/* ── 分段导出弹窗 ── */}
       {showSliceDialog && (
         <>
-          <div className="fixed inset-0 bg-black/40 z-40" onClick={() => setShowSliceDialog(false)} />
-          <div className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-2xl shadow-2xl animate-slide-up">
+          <div className="fixed inset-0 bg-foreground/40 z-40" onClick={() => setShowSliceDialog(false)} />
+          <div className="fixed bottom-0 left-0 right-0 z-50 bg-card border-t rounded-t-lg animate-slide-up">
             <div className="flex items-center justify-between px-4 pt-4 pb-2">
-              <h3 className="font-bold text-gray-800 flex items-center gap-2">
+              <h3 className="font-medium text-base flex items-center gap-2">
                 <Scissors size={16} /> 分段导出
               </h3>
-              <button onClick={() => setShowSliceDialog(false)} className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center text-gray-500">
+              <button onClick={() => setShowSliceDialog(false)} className="w-7 h-7 rounded-md bg-muted hover:bg-muted/80 flex items-center justify-center text-muted-foreground transition-colors">
                 <X size={15} />
               </button>
             </div>
             <div className="px-4 py-4 space-y-4">
               <div>
-                <label className="text-sm text-gray-600 mb-1 block">每段高度（px）</label>
+                <label className="text-sm text-muted-foreground mb-1 block">每段高度（px）</label>
                 <input
                   type="number"
                   min={500}
@@ -391,7 +390,7 @@ const MobileEditor = () => {
                   step={100}
                   value={sliceHeight}
                   onChange={(e) => setSliceHeight(Math.max(500, Number(e.target.value) || 2000))}
-                  className="w-full h-10 border rounded-lg px-3 text-sm"
+                  className="w-full h-10 border border-input bg-background rounded-md px-3 text-sm focus-visible:outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
                 />
               </div>
               <div className="grid grid-cols-2 gap-3">

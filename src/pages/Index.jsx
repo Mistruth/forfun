@@ -1,5 +1,4 @@
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Separator } from '@/components/ui/separator';
 import ImageGenerator from '@/components/ImageGenerator';
 import { CardContent, Card } from '@/components/ui/card';
 import { toast } from 'sonner';
@@ -282,10 +281,10 @@ const Index = () => {
   }, [draftSavedAt]);
 
   return (
-    <div className="h-screen flex overflow-hidden bg-gray-100">
+    <div className="h-screen flex overflow-hidden bg-background text-foreground">
       {/* 最左侧：组件面板 */}
       {showComponentPanel && (
-        <div className="w-[clamp(240px,18vw,288px)] flex-shrink-0 bg-white border-r shadow-sm flex flex-col">
+        <div className="w-[clamp(240px,18vw,288px)] flex-shrink-0 bg-card border-r flex flex-col">
           <div className="flex-1 overflow-hidden">
             <CustomComponentPanel onInsert={handleInsertComponent} />
           </div>
@@ -295,7 +294,7 @@ const Index = () => {
       {/* 中间：块编辑器 */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* 编辑器头部 */}
-        <div className="bg-white border-b px-4 py-3 flex items-center justify-between">
+        <div className="bg-card border-b px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2 min-w-0">
             <Button
               variant={showComponentPanel ? 'outline' : 'default'}
@@ -307,28 +306,26 @@ const Index = () => {
               {showComponentPanel ? <PanelLeftClose size={16} /> : <PanelLeft size={16} />}
               <span className="hidden sm:inline">{showComponentPanel ? '收起面板' : '组件面板'}</span>
             </Button>
-            <Separator orientation="vertical" className="h-6" />
-            <h2 className="font-bold text-gray-800 truncate">公众号长图工具</h2>
+            <h2 className="font-medium text-base truncate">公众号长图工具</h2>
           </div>
           <div className="flex items-center gap-2">
             <Button
               size="sm"
               variant="outline"
               onClick={() => setShowTemplatePicker(true)}
-              className="flex items-center gap-1 text-green-600 border-green-200 hover:bg-green-50"
+              className="flex items-center gap-1"
             >
               <LayoutTemplate size={14} />
               <span className="hidden sm:inline">模板</span>
             </Button>
             <Button
               size="sm"
-              className="flex items-center gap-1 text-white bg-green-500 hover:bg-green-600"
+              className="flex items-center gap-1 bg-brand text-brand-foreground hover:bg-brand/80"
               onClick={() => setShowPreview(true)}
             >
               <Eye size={14} />
               <span className="hidden sm:inline">预览</span>
             </Button>
-            <Separator orientation="vertical" className="h-6" />
             <Button
               size="sm"
               variant="outline"
@@ -349,7 +346,6 @@ const Index = () => {
             >
               <Redo2 size={15} />
             </Button>
-            <Separator orientation="vertical" className="h-6" />
             <Button
               size="sm"
               variant="outline"
@@ -361,7 +357,7 @@ const Index = () => {
               <span className="hidden sm:inline">保存</span>
             </Button>
             {draftTimeStr && (
-              <span className="text-xs text-gray-400 whitespace-nowrap">{draftTimeStr} 已保存</span>
+              <span className="text-xs text-muted-foreground whitespace-nowrap">{draftTimeStr} 已保存</span>
             )}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -385,7 +381,7 @@ const Index = () => {
                 <DropdownMenuItem
                   onClick={handleClear}
                   disabled={blocks.length === 0}
-                  className="text-red-600 focus:text-red-600"
+                  className="text-destructive focus:text-destructive"
                 >
                   清空
                 </DropdownMenuItem>
@@ -395,9 +391,9 @@ const Index = () => {
         </div>
 
         {/* 编辑器内容 */}
-        <div className="flex-1 overflow-hidden bg-gray-100">
+        <div className="flex-1 overflow-hidden bg-muted/40">
           <div className="h-full flex justify-center p-4">
-          <Card className="h-full w-[420px] max-w-full shadow-lg rounded-lg border border-gray-200 overflow-hidden">
+          <Card className="h-full w-[420px] max-w-full rounded-lg border overflow-hidden shadow-none">
             <CardContent className="p-0 h-full overflow-auto">
               <BlockEditor
                 blocks={blocks}
@@ -412,7 +408,7 @@ const Index = () => {
       </div>
 
       {/* 配置区：常驻显示 */}
-      <div className="w-[clamp(340px,28vw,420px)] flex-shrink-0 border-l border-r border-gray-200 shadow-sm bg-white">
+      <div className="w-[clamp(340px,28vw,420px)] flex-shrink-0 border-l bg-card">
         {selectedBlock ? (
           <ComponentConfigPanel
             block={selectedBlock}
@@ -420,15 +416,15 @@ const Index = () => {
             onClose={handleCloseDrawer}
           />
         ) : (
-          <div className="h-full flex flex-col bg-white">
-            <div className="flex items-center gap-2 px-4 py-3 border-b bg-gradient-to-r from-blue-50 to-indigo-50">
-              <Settings2 size={18} className="text-blue-600" />
+          <div className="h-full flex flex-col bg-card">
+            <div className="flex items-center gap-2 px-4 py-3 border-b">
+              <Settings2 size={18} className="text-muted-foreground" />
               <div>
-                <h3 className="font-bold text-gray-800 text-sm">配置面板</h3>
-                <p className="text-xs text-gray-500">选择中间组件后编辑样式和内容</p>
+                <h3 className="font-medium text-sm">配置面板</h3>
+                <p className="text-xs text-muted-foreground">选择中间组件后编辑样式和内容</p>
               </div>
             </div>
-            <div className="flex-1 flex items-center justify-center px-8 text-center text-sm text-gray-400">
+            <div className="flex-1 flex items-center justify-center px-8 text-center text-sm text-muted-foreground">
               从中间编辑区选择一个组件
             </div>
           </div>
@@ -438,11 +434,11 @@ const Index = () => {
       {/* 预览弹窗 */}
       {showPreview && (
         <>
-          <div className="fixed inset-0 bg-black/50 z-40" onClick={() => setShowPreview(false)} />
-          <div className="fixed inset-4 z-50 bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden">
-            <div className="flex items-center justify-between px-6 py-3 border-b bg-gradient-to-r from-green-50 to-emerald-50">
-              <h2 className="font-bold text-gray-800 flex items-center gap-2">
-                <Sparkles size={18} className="text-green-600" />
+          <div className="fixed inset-0 bg-foreground/50 z-40" onClick={() => setShowPreview(false)} />
+          <div className="fixed inset-4 z-50 bg-card rounded-lg border flex flex-col overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-3 border-b">
+              <h2 className="font-medium text-base flex items-center gap-2">
+                <Sparkles size={18} className="text-brand" />
                 实时预览
               </h2>
               <div className="flex items-center gap-2">
@@ -454,7 +450,7 @@ const Index = () => {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-8 w-8 p-0 hover:bg-white/60"
+                  className="h-8 w-8 p-0"
                   onClick={() => setShowPreview(false)}
                 >
                   <X size={18} />
@@ -463,7 +459,7 @@ const Index = () => {
             </div>
             <ScrollArea className="flex-1">
               <div className="flex justify-center p-8">
-                <div className="w-[420px] bg-white" style={{ boxShadow: '0 2px 20px rgba(0,0,0,0.08)' }}>
+                <div className="w-[420px] bg-white border">
                   <div className="preview-content-for-export overflow-hidden">
                     <div className="p-[0.8rem]">
                       <WechatStyleWrapper>
