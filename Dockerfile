@@ -1,13 +1,15 @@
 FROM node:20-bookworm-slim AS deps
 WORKDIR /app
+RUN npm install -g pnpm@10
 COPY package.json pnpm-lock.yaml ./
-RUN corepack enable && pnpm install --frozen-lockfile
+RUN pnpm install --frozen-lockfile
 
 FROM node:20-bookworm-slim AS build
 WORKDIR /app
+RUN npm install -g pnpm@10
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-RUN corepack enable && pnpm build
+RUN pnpm build
 RUN pnpm prune --prod
 
 FROM node:20-bookworm-slim AS runtime
