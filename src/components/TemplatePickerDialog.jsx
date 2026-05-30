@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { templates, templateCategories } from './Templates';
-import { LayoutTemplate, CheckCircle2, Pencil, Trash2, Download, Upload } from 'lucide-react';
+import { LayoutTemplate, CheckCircle2, Pencil, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import templateStore from '@/lib/templateStore';
 
@@ -42,17 +42,16 @@ const TemplatePickerDialog = ({ open, onClose, onApply }) => {
   }, []);
 
   useEffect(() => {
-    if (open && activeCategory === 'my-templates') {
+    if (open) {
       loadUserTemplates();
     }
-  }, [open, activeCategory, loadUserTemplates]);
+  }, [open, loadUserTemplates]);
 
-  const filtered =
-    activeCategory === 'all'
-      ? templates
-      : activeCategory === 'my-templates'
-        ? []
-        : templates.filter((t) => t.category === activeCategory);
+  const filtered = activeCategory === 'all'
+    ? [...templates, ...userTemplates]
+    : activeCategory === 'my-templates'
+      ? userTemplates
+      : templates.filter((t) => t.category === activeCategory);
 
   const handleApply = (tpl) => {
     let counter = Date.now();
@@ -70,34 +69,6 @@ const TemplatePickerDialog = ({ open, onClose, onApply }) => {
     await templateStore.remove(id);
     toast.success('模板已删除');
     loadUserTemplates();
-  };
-
-  const handleExport = async (id) => {
-    try {
-      await templateStore.exportTemplate(id);
-      toast.success('模板已导出');
-    } catch {
-      toast.error('导出失败');
-    }
-  };
-
-  const handleImport = () => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.json';
-    input.onchange = async (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-      try {
-        const text = await file.text();
-        await templateStore.importTemplate(text);
-        toast.success('模板导入成功');
-        loadUserTemplates();
-      } catch (err) {
-        toast.error(err.message || '导入失败');
-      }
-    };
-    input.click();
   };
 
   const startEdit = (tpl) => {
@@ -120,6 +91,8 @@ const TemplatePickerDialog = ({ open, onClose, onApply }) => {
     toast.success('模板已更新');
     loadUserTemplates();
   };
+
+  const isUserTemplate = (tpl) => tpl.id && String(tpl.id).startsWith('tpl_user_');
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
@@ -154,232 +127,144 @@ const TemplatePickerDialog = ({ open, onClose, onApply }) => {
 
         {/* 模板列表 */}
         <div className="px-6 pb-6 overflow-y-auto max-h-[60vh]">
-          {/* 我的模板 - 特殊渲染 */}
-          {activeCategory === 'my-templates' ? (
-            <>
-              <div className="flex items-center justify-between mt-2 mb-3">
-                <span className="text-sm text-muted-foreground">
-                  共 {userTemplates.length} 个模板
-                </span>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={handleImport}
-                  className="flex items-center gap-1"
-                >
-                  <Upload size={14} />
-                  导入模板
-                </Button>
+          {editingTpl && (
+            <div className="rounded-lg border bg-muted p-4 mb-3">
+              <div className="space-y-3">
+                <Input
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  placeholder="模板名称"
+                />
+                <Input
+                  value={editDesc}
+                  onChange={(e) => setEditDesc(e.target.value)}
+                  placeholder="模板描述（可选）"
+                />
+                <div className="flex gap-2 flex-wrap">
+                  {EMOJI_OPTIONS.map((emoji) => (
+                    <button
+                      key={emoji}
+                      onClick={() => setEditCover(emoji)}
+                      className={`w-8 h-8 rounded text-base flex items-center justify-center ${
+                        editCover === emoji
+                          ? 'bg-background ring-[3px] ring-ring/50'
+                          : 'bg-background hover:bg-muted'
+                      }`}
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Button size="sm" variant="ghost" onClick={() => setEditingTpl(null)}>
+                    取消
+                  </Button>
+                  <Button size="sm" onClick={saveEdit}>
+                    保存
+                  </Button>
+                </div>
               </div>
+            </div>
+          )}
 
-              {editingTpl && (
-                <div className="rounded-lg border bg-muted p-4 mb-3">
-                  <div className="space-y-3">
-                    <Input
-                      value={editName}
-                      onChange={(e) => setEditName(e.target.value)}
-                      placeholder="模板名称"
-                    />
-                    <Input
-                      value={editDesc}
-                      onChange={(e) => setEditDesc(e.target.value)}
-                      placeholder="模板描述（可选）"
-                    />
-                    <div className="flex gap-2 flex-wrap">
-                      {EMOJI_OPTIONS.map((emoji) => (
-                        <button
-                          key={emoji}
-                          onClick={() => setEditCover(emoji)}
-                          className={`w-8 h-8 rounded text-base flex items-center justify-center ${
-                            editCover === emoji
-                              ? 'bg-background ring-[3px] ring-ring/50'
-                              : 'bg-background hover:bg-muted'
+          {filtered.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground text-sm">
+              <p>还没有保存过模板</p>
+              <p className="mt-1">在编辑器中点击「存为模板」来保存当前内容</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-3 mt-2">
+              {filtered.map((tpl) => {
+                const isHovered = hoveredId === tpl.id;
+                const isUser = isUserTemplate(tpl);
+                return (
+                  <div
+                    key={tpl.id}
+                    onMouseEnter={() => setHoveredId(tpl.id)}
+                    onMouseLeave={() => setHoveredId(null)}
+                    className={`relative rounded-lg border p-4 cursor-pointer transition-colors ${
+                      isHovered
+                        ? 'border-ring bg-muted'
+                        : 'bg-card hover:bg-muted'
+                    }`}
+                  >
+                    <div className="flex items-start gap-4">
+                      <div className="w-14 h-14 rounded-lg bg-muted flex items-center justify-center text-3xl flex-shrink-0">
+                        {tpl.cover}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="font-medium text-base">{tpl.name}</h3>
+                          {tpl.category && (
+                            <Badge
+                              variant="secondary"
+                              className="text-xs bg-muted text-muted-foreground border-0"
+                            >
+                              {tpl.category}
+                            </Badge>
+                          )}
+                          <span className="text-xs text-muted-foreground">
+                            共 {tpl.blocks.length} 个块
+                          </span>
+                          {tpl.updatedAt && (
+                            <span className="text-xs text-muted-foreground">
+                              {new Date(tpl.updatedAt).toLocaleDateString()}
+                            </span>
+                          )}
+                        </div>
+                        {tpl.description && (
+                          <p className="text-sm text-muted-foreground mt-1 leading-relaxed line-clamp-2">
+                            {tpl.description}
+                          </p>
+                        )}
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          {getBlockSummary(tpl.blocks).map((item, i) => (
+                            <span
+                              key={i}
+                              className="text-xs px-2 py-0.5 rounded bg-background text-muted-foreground"
+                            >
+                              {item}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="flex flex-col gap-1 flex-shrink-0">
+                        <Button
+                          size="sm"
+                          onClick={() => handleApply(tpl)}
+                          className={`transition-all ${
+                            isHovered
+                              ? 'bg-primary hover:bg-primary/80 text-primary-foreground'
+                              : 'bg-muted text-muted-foreground hover:bg-primary hover:text-primary-foreground'
                           }`}
                         >
-                          {emoji}
-                        </button>
-                      ))}
-                    </div>
-                    <div className="flex justify-end gap-2">
-                      <Button size="sm" variant="ghost" onClick={() => setEditingTpl(null)}>
-                        取消
-                      </Button>
-                      <Button size="sm" onClick={saveEdit}>
-                        保存
-                      </Button>
+                          <CheckCircle2 size={14} className="mr-1" />
+                          使用
+                        </Button>
+                        {isUser && (
+                          <div className="flex gap-1">
+                            <button
+                              onClick={() => startEdit(tpl)}
+                              className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-info transition-colors"
+                              title="编辑"
+                            >
+                              <Pencil size={14} />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(tpl.id)}
+                              className="p-1.5 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                              title="删除"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              )}
-
-              {userTemplates.length === 0 && !editingTpl ? (
-                <div className="text-center py-12 text-muted-foreground text-sm">
-                  <p>还没有保存过模板</p>
-                  <p className="mt-1">在编辑器中点击「存为模板」来保存当前内容</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 gap-3">
-                  {userTemplates.map((tpl) => {
-                    const isHovered = hoveredId === tpl.id;
-                    return (
-                      <div
-                        key={tpl.id}
-                        onMouseEnter={() => setHoveredId(tpl.id)}
-                        onMouseLeave={() => setHoveredId(null)}
-                        className={`relative rounded-lg border p-4 cursor-pointer transition-colors ${
-                          isHovered
-                            ? 'border-ring bg-muted'
-                            : 'bg-card hover:bg-muted'
-                        }`}
-                      >
-                        <div className="flex items-start gap-4">
-                          <div className="w-14 h-14 rounded-lg bg-muted flex items-center justify-center text-3xl flex-shrink-0">
-                            {tpl.cover}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <h3 className="font-medium text-base">{tpl.name}</h3>
-                              <span className="text-xs text-muted-foreground">
-                                共 {tpl.blocks.length} 个块
-                              </span>
-                              {tpl.updatedAt && (
-                                <span className="text-xs text-muted-foreground">
-                                  {new Date(tpl.updatedAt).toLocaleDateString()}
-                                </span>
-                              )}
-                            </div>
-                            {tpl.description && (
-                              <p className="text-sm text-muted-foreground mt-1 leading-relaxed line-clamp-2">
-                                {tpl.description}
-                              </p>
-                            )}
-                            <div className="flex flex-wrap gap-1 mt-2">
-                              {getBlockSummary(tpl.blocks).map((item, i) => (
-                                <span
-                                  key={i}
-                                  className="text-xs px-2 py-0.5 rounded bg-background text-muted-foreground"
-                                >
-                                  {item}
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-                          <div className="flex flex-col gap-1 flex-shrink-0">
-                            <Button
-                              size="sm"
-                              onClick={() => handleApply(tpl)}
-                              className={`transition-all ${
-                                isHovered
-                                  ? 'bg-primary hover:bg-primary/80 text-primary-foreground'
-                                  : 'bg-muted text-muted-foreground hover:bg-primary hover:text-primary-foreground'
-                              }`}
-                            >
-                              <CheckCircle2 size={14} className="mr-1" />
-                              使用
-                            </Button>
-                            <div className="flex gap-1">
-                              <button
-                                onClick={() => startEdit(tpl)}
-                                className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-info transition-colors"
-                                title="编辑"
-                              >
-                                <Pencil size={14} />
-                              </button>
-                              <button
-                                onClick={() => handleExport(tpl.id)}
-                                className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-success transition-colors"
-                                title="导出"
-                              >
-                                <Download size={14} />
-                              </button>
-                              <button
-                                onClick={() => handleDelete(tpl.id)}
-                                className="p-1.5 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
-                                title="删除"
-                              >
-                                <Trash2 size={14} />
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </>
-          ) : (
-            /* 内置模板列表（保持原有逻辑） */
-            <>
-              {filtered.length === 0 ? (
-                <div className="text-center py-12 text-muted-foreground text-sm">暂无模板</div>
-              ) : (
-                <div className="grid grid-cols-1 gap-3 mt-2">
-                  {filtered.map((tpl) => {
-                    const isHovered = hoveredId === tpl.id;
-                    return (
-                      <div
-                        key={tpl.id}
-                        onMouseEnter={() => setHoveredId(tpl.id)}
-                        onMouseLeave={() => setHoveredId(null)}
-                        className={`relative rounded-lg border p-4 cursor-pointer transition-colors ${
-                          isHovered
-                            ? 'border-ring bg-muted'
-                            : 'bg-card hover:bg-muted'
-                        }`}
-                      >
-                        <div className="flex items-start gap-4">
-                          <div className="w-14 h-14 rounded-lg bg-muted flex items-center justify-center text-3xl flex-shrink-0">
-                            {tpl.cover}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <h3 className="font-medium text-base">{tpl.name}</h3>
-                              <Badge
-                                variant="secondary"
-                                className="text-xs bg-muted text-muted-foreground border-0"
-                              >
-                                {tpl.category}
-                              </Badge>
-                              <span className="text-xs text-muted-foreground">
-                                共 {tpl.blocks.length} 个块
-                              </span>
-                            </div>
-                            <p className="text-sm text-muted-foreground mt-1 leading-relaxed line-clamp-2">
-                              {tpl.description}
-                            </p>
-                            <div className="flex flex-wrap gap-1 mt-2">
-                              {getBlockSummary(tpl.blocks).map((item, i) => (
-                                <span
-                                  key={i}
-                                  className="text-xs px-2 py-0.5 rounded bg-background text-muted-foreground"
-                                >
-                                  {item}
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-                          <div className="flex-shrink-0">
-                            <Button
-                              size="sm"
-                              onClick={() => handleApply(tpl)}
-                              className={`transition-all ${
-                                isHovered
-                                  ? 'bg-primary hover:bg-primary/80 text-primary-foreground'
-                                  : 'bg-muted text-muted-foreground hover:bg-primary hover:text-primary-foreground'
-                              }`}
-                            >
-                              <CheckCircle2 size={14} className="mr-1" />
-                              使用模板
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </>
+                );
+              })}
+            </div>
           )}
         </div>
       </DialogContent>

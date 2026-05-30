@@ -4,7 +4,7 @@ services:
     ports:
       - "8080:8080"
     environment:
-      ADMIN_PASSWORD: "${ADMIN_PASSWORD:-change-me}"
+      ADMIN_PASSWORD: "${ADMIN_PASSWORD:-wyd520}"
       SESSION_SECRET: "${SESSION_SECRET:-replace-with-random-long-secret}"
       DATA_DIR: "/data"
       MAX_UPLOAD_MB: "${MAX_UPLOAD_MB:-8}"

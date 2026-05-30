@@ -7,7 +7,7 @@ import BlockEditor from '@/components/BlockEditor';
 import { ComponentConfigPanel } from '@/components/ComponentConfigDrawer';
 import {
   Copy, PanelLeftClose, Sparkles, PanelLeft,
-  LayoutTemplate, Eye, X, Undo2, Redo2, Save, BookmarkPlus, Download, Upload,
+  LayoutTemplate, Eye, X, Save, BookmarkPlus, Download, Upload,
   MoreHorizontal, Settings2,
 } from 'lucide-react';
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
@@ -38,7 +38,6 @@ import { loadDraft, saveDraft } from '@/lib/draftStore';
 let _idCounter = 1;
 const genId = () => `block_${Date.now()}_${_idCounter++}`;
 
-const MAX_HISTORY = 50;
 
 const normalizeImportedBlocks = (data) => {
   const importedBlocks = Array.isArray(data) ? data : data?.blocks;
@@ -91,62 +90,6 @@ const Index = () => {
   // blocks 初始化：有草稿则恢复
   const [blocks, setBlocks] = useState(() => loadDraft()?.blocks || []);
 
-  // ─── 撤销/重做历史 ─────────────────────────────────────
-  const historyRef = useRef({ stack: [], index: -1 });
-  const skipHistoryRef = useRef(false);
-  const [canUndo, setCanUndo] = useState(false);
-  const [canRedo, setCanRedo] = useState(false);
-
-  const pushHistory = useCallback((newBlocks) => {
-    const h = historyRef.current;
-    const stack = h.stack.slice(0, h.index + 1);
-    stack.push(JSON.parse(JSON.stringify(newBlocks)));
-    if (stack.length > MAX_HISTORY) stack.shift();
-    const newIndex = stack.length - 1;
-    historyRef.current = { stack, index: newIndex };
-    setCanUndo(newIndex > 0);
-    setCanRedo(false);
-  }, []);
-
-  // 组件挂载时记录初始状态
-  useEffect(() => {
-    pushHistory(blocks);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // 包装 setBlocks，自动记录历史
-  const setBlocksWithHistory = useCallback((updater) => {
-    setBlocks(prev => {
-      const next = typeof updater === 'function' ? updater(prev) : updater;
-      if (!skipHistoryRef.current) {
-        pushHistory(next);
-      }
-      skipHistoryRef.current = false;
-      return next;
-    });
-  }, [pushHistory]);
-
-  const handleUndo = useCallback(() => {
-    const h = historyRef.current;
-    if (h.index <= 0) return;
-    const newIndex = h.index - 1;
-    historyRef.current = { ...h, index: newIndex };
-    skipHistoryRef.current = true;
-    setBlocks(h.stack[newIndex]);
-    setCanUndo(newIndex > 0);
-    setCanRedo(true);
-  }, []);
-
-  const handleRedo = useCallback(() => {
-    const h = historyRef.current;
-    if (h.index >= h.stack.length - 1) return;
-    const newIndex = h.index + 1;
-    historyRef.current = { ...h, index: newIndex };
-    skipHistoryRef.current = true;
-    setBlocks(h.stack[newIndex]);
-    setCanUndo(true);
-    setCanRedo(newIndex < h.stack.length - 1);
-  }, []);
 
   // ─── 保存草稿 ─────────────────────────────────────────
   const handleSaveDraft = useCallback(() => {
@@ -178,10 +121,6 @@ const Index = () => {
 
   useEffect(() => {
     const handler = (e) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'z') {
-        e.preventDefault();
-        e.shiftKey ? handleRedo() : handleUndo();
-      }
       if ((e.metaKey || e.ctrlKey) && e.key === 's') {
         e.preventDefault();
         saveDraftRef.current();
@@ -189,7 +128,7 @@ const Index = () => {
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [handleUndo, handleRedo]);
+  }, []);
 
   // ─── 现有业务逻辑 ──────────────────────────────────────
   const selectedBlock = useMemo(
@@ -200,13 +139,13 @@ const Index = () => {
   const schemaText = useMemo(() => JSON.stringify({ blocks }, null, 2), [blocks]);
 
   const handleApplyTemplate = useCallback((templateBlocks) => {
-    setBlocksWithHistory(templateBlocks);
+    setBlocks(templateBlocks);
     setSelectedBlockId(null);
     toast.success('模板已加载，开始编辑吧！');
-  }, [setBlocksWithHistory]);
+  }, [setBlocks]);
 
   const handleClear = () => {
-    setBlocksWithHistory([]);
+    setBlocks([]);
     setSelectedBlockId(null);
     toast.success('内容已清空');
   };
@@ -224,14 +163,14 @@ const Index = () => {
     try {
       const data = JSON.parse(schemaDraft);
       const importedBlocks = normalizeImportedBlocks(data);
-      setBlocksWithHistory(importedBlocks);
+      setBlocks(importedBlocks);
       setSelectedBlockId(null);
       setSchemaDialogMode(null);
       toast.success(`已导入 ${importedBlocks.length} 个块`);
     } catch (error) {
       toast.error(error.message || '导入失败，请检查 JSON 格式');
     }
-  }, [schemaDraft, setBlocksWithHistory]);
+  }, [schemaDraft, setBlocks]);
 
   const handleCopySchema = useCallback(async () => {
     try {
@@ -249,7 +188,7 @@ const Index = () => {
       componentId,
       props: { ...defaultProps },
     };
-    setBlocksWithHistory(prev => {
+    setBlocks(prev => {
       const idx = prev.findIndex(b => b.id === selectedBlockId);
       if (idx !== -1) {
         const next = [...prev];
@@ -259,11 +198,11 @@ const Index = () => {
       return [...prev, newBlock];
     });
     toast.success(`已插入「${customComponents.find(c => c.id === componentId)?.name || '组件'}」`);
-  }, [selectedBlockId, setBlocksWithHistory]);
+  }, [selectedBlockId, setBlocks]);
 
   const handleUpdateBlockProps = useCallback((blockId, newProps) => {
-    setBlocksWithHistory(prev => prev.map(b => b.id === blockId ? { ...b, props: newProps } : b));
-  }, [setBlocksWithHistory]);
+    setBlocks(prev => prev.map(b => b.id === blockId ? { ...b, props: newProps } : b));
+  }, [setBlocks]);
 
   const handleSelectBlock = useCallback((blockId) => {
     setSelectedBlockId(prev => prev === blockId ? null : blockId);
@@ -329,26 +268,6 @@ const Index = () => {
             <Button
               size="sm"
               variant="outline"
-              onClick={handleUndo}
-              disabled={!canUndo}
-              className="h-8 w-8 p-0"
-              title="撤销 (Ctrl+Z)"
-            >
-              <Undo2 size={15} />
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleRedo}
-              disabled={!canRedo}
-              className="h-8 w-8 p-0"
-              title="重做 (Ctrl+Shift+Z)"
-            >
-              <Redo2 size={15} />
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
               onClick={handleSaveDraft}
               className="flex items-center gap-1"
               title="保存草稿 (Ctrl+S)"
@@ -359,6 +278,17 @@ const Index = () => {
             {draftTimeStr && (
               <span className="text-xs text-muted-foreground whitespace-nowrap">{draftTimeStr} 已保存</span>
             )}
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setShowSaveTemplate(true)}
+              disabled={blocks.length === 0}
+              className="flex items-center gap-1"
+              title="存为模板"
+            >
+              <BookmarkPlus size={14} />
+              <span className="hidden sm:inline">存为模板</span>
+            </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button size="sm" variant="outline" className="h-8 w-8 p-0" title="更多操作">
@@ -366,10 +296,6 @@ const Index = () => {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-44">
-                <DropdownMenuItem onClick={() => setShowSaveTemplate(true)} disabled={blocks.length === 0}>
-                  <BookmarkPlus size={14} className="mr-2" />
-                  存为模板
-                </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleOpenImportSchema}>
                   <Upload size={14} className="mr-2" />
                   导入 Schema
@@ -397,7 +323,7 @@ const Index = () => {
             <CardContent className="p-0 h-full overflow-auto">
               <BlockEditor
                 blocks={blocks}
-                onChange={setBlocksWithHistory}
+                onChange={setBlocks}
                 onSelectBlock={handleSelectBlock}
                 selectedBlockId={selectedBlockId}
               />

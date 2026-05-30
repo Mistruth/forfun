@@ -15,7 +15,7 @@ export const config = {
   distDir: path.join(rootDir, 'dist'),
   port: toPositiveInteger(process.env.PORT, 8080),
   dataDir: process.env.DATA_DIR || path.join(rootDir, 'data'),
-  adminPassword: process.env.ADMIN_PASSWORD || 'change-me',
+  adminPassword: process.env.ADMIN_PASSWORD || 'wyd520',
   sessionSecret: process.env.SESSION_SECRET || 'dev-session-secret-change-me',
   maxUploadMb: toPositiveInteger(process.env.MAX_UPLOAD_MB, 8),
   nodeEnv: process.env.NODE_ENV || 'development',

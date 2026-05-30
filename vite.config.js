@@ -5,7 +5,7 @@ import react from '@vitejs/plugin-react';
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  base: '/forfun/',
+  base: '/',
   server: {
     host: '::',
     port: 5173,
