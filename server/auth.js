@@ -54,8 +54,8 @@ export const getSession = (req, res) => {
 };
 
 export const createSession = (req, res) => {
-  const password = String(req.body?.password || '');
-  if (!password || password !== config.adminPassword) {
+  const password = req.body?.password;
+  if (typeof password !== 'string' || !password || password !== config.adminPassword) {
     res.status(401).json({ error: '口令不正确' });
     return;
   }
