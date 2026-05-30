@@ -3,6 +3,7 @@ import path from 'node:path';
 import express from 'express';
 import { config, uploadsDir } from './config.js';
 import { createSession, destroySession, getSession, requireAuth } from './auth.js';
+import templateRoutes from './templates.js';
 
 fs.mkdirSync(uploadsDir, { recursive: true });
 
@@ -29,6 +30,7 @@ app.use('/api', jsonParser);
 app.use('/api', jsonParseErrorHandler);
 
 // Mount future private API routers here.
+app.use('/api/templates', templateRoutes);
 
 app.use('/api', (req, res) => {
   res.status(404).json({ error: '接口不存在' });
