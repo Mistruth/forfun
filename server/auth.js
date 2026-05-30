@@ -18,10 +18,15 @@ const createCookieValue = () => {
 
 const isValidCookieValue = (value) => {
   if (!value || typeof value !== 'string') return false;
-  const [payload, signature] = value.split('.');
+  const parts = value.split('.');
+  if (parts.length !== 2) return false;
+  const [payload, signature] = parts;
   if (payload !== SESSION_VALUE || !signature) return false;
   const expected = sign(payload);
-  return crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected));
+  const signatureBuffer = Buffer.from(signature);
+  const expectedBuffer = Buffer.from(expected);
+  if (signatureBuffer.length !== expectedBuffer.length) return false;
+  return crypto.timingSafeEqual(signatureBuffer, expectedBuffer);
 };
 
 const cookieOptions = {
