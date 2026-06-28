@@ -14,7 +14,7 @@ import templateStore from '@/lib/templateStore';
 
 const EMOJI_OPTIONS = ['📄', '📝', '🎨', '🏔️', '🎉', '📦', '💡', '🚀', '❤️', '🌟'];
 
-const SaveTemplateDialog = ({ open, onClose, blocks }) => {
+const SaveTemplateDialog = ({ open, onClose, blocks, onSaved }) => {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [cover, setCover] = useState('📄');
@@ -28,18 +28,18 @@ const SaveTemplateDialog = ({ open, onClose, blocks }) => {
     }
     setSaving(true);
     try {
-      await templateStore.save({
-        id: `tpl_user_${Date.now()}`,
+      const saved = await templateStore.save({
         name: trimmedName,
         description: description.trim(),
         category: '我的模板',
         cover,
         blocks: JSON.parse(JSON.stringify(blocks)),
-      });
+      }, { versionNote: '另存为新模板' });
       toast.success(`模板「${trimmedName}」已保存`);
       setName('');
       setDescription('');
       setCover('📄');
+      onSaved?.(saved);
       onClose();
     } catch (e) {
       toast.error('保存失败：' + e.message);
@@ -54,9 +54,9 @@ const SaveTemplateDialog = ({ open, onClose, blocks }) => {
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Save size={18} />
-            保存为模板
+            另存为新模板
           </DialogTitle>
-          <DialogDescription>将当前编辑内容保存为可复用的模板</DialogDescription>
+          <DialogDescription>将当前编辑内容保存成一个新的个人模板</DialogDescription>
         </DialogHeader>
         <div className="space-y-4 pt-2">
           <div>
@@ -102,7 +102,7 @@ const SaveTemplateDialog = ({ open, onClose, blocks }) => {
               取消
             </Button>
             <Button onClick={handleSave} disabled={saving || !name.trim()}>
-              {saving ? '保存中...' : '保存模板'}
+              {saving ? '保存中...' : '另存为新模板'}
             </Button>
           </div>
         </div>

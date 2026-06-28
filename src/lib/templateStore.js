@@ -24,7 +24,7 @@ const templateStore = {
     return apiRequest(`/api/templates/${encodeURIComponent(id)}`);
   },
 
-  async save(template) {
+  async save(template, options = {}) {
     const hasServerId = template.id && !String(template.id).startsWith('tpl_user_');
     const method = hasServerId ? 'PUT' : 'POST';
     const url = hasServerId
@@ -33,13 +33,40 @@ const templateStore = {
 
     return apiRequest(url, {
       method,
-      body: JSON.stringify(template),
+      body: JSON.stringify({
+        ...template,
+        ...(options.versionNote ? { versionNote: options.versionNote } : {}),
+      }),
+    });
+  },
+
+  async updateBlocks(id, blocks, versionNote = '更新模板') {
+    return apiRequest(`/api/templates/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      body: JSON.stringify({
+        blocks,
+        versionNote,
+      }),
     });
   },
 
   async remove(id) {
     return apiRequest(`/api/templates/${encodeURIComponent(id)}`, {
       method: 'DELETE',
+    });
+  },
+
+  async getVersions(id, options = {}) {
+    const params = new URLSearchParams();
+    if (options.page) params.set('page', String(options.page));
+    if (options.pageSize) params.set('pageSize', String(options.pageSize));
+    const query = params.toString();
+    return apiRequest(`/api/templates/${encodeURIComponent(id)}/versions${query ? `?${query}` : ''}`);
+  },
+
+  async restoreVersion(id, version) {
+    return apiRequest(`/api/templates/${encodeURIComponent(id)}/restore/${encodeURIComponent(version)}`, {
+      method: 'POST',
     });
   },
 
@@ -67,7 +94,7 @@ const templateStore = {
       category: '我的模板',
       cover: data.cover || '📄',
       blocks: data.blocks,
-    });
+    }, { versionNote: '导入模板' });
   },
 };
 

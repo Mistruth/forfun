@@ -410,6 +410,129 @@ const renderStatsBar = (props) => {
 </section>`;
 };
 
+const renderImageCollage = (props) => {
+  const {
+    layout = 'featured-left',
+    imageUrl1 = '',
+    imageUrl2 = '',
+    imageUrl3 = '',
+    imageUrl4 = '',
+    caption = '把现场感拼进一张图里',
+    gap = '6',
+    borderRadius = '12px',
+    fontFamily = "'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif",
+  } = props;
+
+  const images = [imageUrl1, imageUrl2, imageUrl3, imageUrl4];
+  const gapSize = parseInt(gap) || 6;
+  const placeholder = (idx) => `<div style="width: 100%; height: 100%; background: linear-gradient(135deg, #f2f3f5, #e5e7eb); display: flex; align-items: center; justify-content: center; color: #9ca3af; font-size: 12px;">图片 ${idx + 1}</div>`;
+  const image = (src, idx) => src
+    ? `<img src="${src}" alt="拼贴图片 ${idx + 1}" style="width: 100%; height: 100%; object-fit: cover; display: block;" />`
+    : placeholder(idx);
+  const tile = (idx, extraStyle = '') => `<div style="overflow: hidden; background: #f3f4f6; ${extraStyle}">${image(images[idx], idx)}</div>`;
+  const captionHtml = caption
+    ? `<div style="margin-top: 8px; text-align: center; font-size: 12px; color: #8a8a8a; line-height: 1.6;">${caption}</div>`
+    : '';
+
+  if (layout === 'grid-4') {
+    return `<section style="margin: 18px 0; font-family: ${fontFamily};">
+  <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: ${gapSize}px; border-radius: ${borderRadius}; overflow: hidden;">
+    ${tile(0, 'aspect-ratio: 1 / 1;')}
+    ${tile(1, 'aspect-ratio: 1 / 1;')}
+    ${tile(2, 'aspect-ratio: 1 / 1;')}
+    ${tile(3, 'aspect-ratio: 1 / 1;')}
+  </div>
+  ${captionHtml}
+</section>`;
+  }
+
+  if (layout === 'magazine') {
+    return `<section style="margin: 18px 0; font-family: ${fontFamily};">
+  <div style="display: grid; grid-template-columns: 1.2fr 0.8fr; grid-template-rows: 118px 118px; gap: ${gapSize}px; border-radius: ${borderRadius}; overflow: hidden;">
+    ${tile(0, 'grid-row: span 2;')}
+    ${tile(1)}
+    ${tile(2)}
+  </div>
+  ${captionHtml}
+</section>`;
+  }
+
+  return `<section style="margin: 18px 0; font-family: ${fontFamily};">
+  <div style="display: grid; grid-template-columns: 1.15fr 0.85fr; gap: ${gapSize}px; border-radius: ${borderRadius}; overflow: hidden;">
+    ${tile(0, 'height: 246px;')}
+    <div style="display: grid; gap: ${gapSize}px;">
+      ${tile(1, 'height: 78px;')}
+      ${tile(2, 'height: 78px;')}
+      ${tile(3, 'height: 78px;')}
+    </div>
+  </div>
+  ${captionHtml}
+</section>`;
+};
+
+const renderHeroBanner = (props) => {
+  const {
+    heroImageUrl = '',
+    eyebrow = 'WEEKEND PLAN',
+    title = '山野徒步招募中',
+    subtitle = '用一天时间走进自然，也走回自己。',
+    meta = '06.30 周日 · 杭州 · 轻徒步',
+    align = 'left',
+    minHeight = '260',
+    textColor = '#ffffff',
+    overlayColor = 'rgba(0,0,0,0.42)',
+    accentColor = '#58bb90',
+    fontFamily = "'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif",
+  } = props;
+
+  const height = parseInt(minHeight) || 260;
+  const textAlign = align === 'center' ? 'center' : 'left';
+  const justify = align === 'center' ? 'center' : 'flex-end';
+  const bg = heroImageUrl
+    ? `background-image: linear-gradient(${overlayColor}, ${overlayColor}), url('${heroImageUrl}'); background-size: cover; background-position: center;`
+    : `background: linear-gradient(135deg, #2f4f4a 0%, #517f6c 52%, #d6a35d 100%);`;
+
+  return `<section style="margin: 0 0 22px; font-family: ${fontFamily};">
+  <div style="${bg} min-height: ${height}px; border-radius: 16px; overflow: hidden; display: flex; align-items: ${justify}; padding: 26px 24px; box-sizing: border-box;">
+    <div style="width: 100%; text-align: ${textAlign}; color: ${textColor};">
+      <div style="display: inline-flex; align-items: center; gap: 8px; padding: 4px 9px; border-radius: 999px; background: rgba(255,255,255,0.16); border: 1px solid rgba(255,255,255,0.22); font-size: 11px; letter-spacing: 1.2px; font-weight: 700;">
+        <span style="width: 6px; height: 6px; border-radius: 50%; background: ${accentColor}; display: inline-block;"></span>${eyebrow}
+      </div>
+      <h1 style="margin: 12px 0 8px; color: ${textColor}; font-size: 34px; line-height: 1.18; font-weight: 900; letter-spacing: 0;">${title}</h1>
+      <div style="font-size: 16px; line-height: 1.7; opacity: 0.92;">${subtitle}</div>
+      <div style="margin-top: 16px; display: inline-flex; padding: 7px 11px; border-radius: 10px; background: rgba(255,255,255,0.16); font-size: 13px; line-height: 1.5;">${meta}</div>
+    </div>
+  </div>
+</section>`;
+};
+
+const renderBadgeGroup = (props) => {
+  const {
+    items = ['新手友好', '小队出行', '风景出片', '限 30 人'],
+    variant = 'solid',
+    accentColor = '#58bb90',
+    bgColor = '#f5f7f6',
+    align = 'left',
+    fontFamily = "'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif",
+  } = props;
+
+  const justify = align === 'center' ? 'center' : 'flex-start';
+  const itemStyle = variant === 'outline'
+    ? `background: #fff; color: ${accentColor}; border: 1px solid ${accentColor}55;`
+    : variant === 'soft'
+      ? `background: ${bgColor}; color: #2f4f4a; border: 1px solid rgba(0,0,0,0.04);`
+      : `background: ${accentColor}; color: #fff; border: 1px solid ${accentColor};`;
+  const badgesHtml = items.map(item =>
+    `<span style="display: inline-flex; align-items: center; min-height: 26px; padding: 4px 10px; border-radius: 999px; font-size: 12px; line-height: 1.4; font-weight: 700; ${itemStyle}">${item}</span>`
+  ).join('');
+
+  return `<section style="margin: 14px 0; font-family: ${fontFamily};">
+  <div style="display: flex; flex-wrap: wrap; gap: 8px; justify-content: ${justify};">
+    ${badgesHtml}
+  </div>
+</section>`;
+};
+
 // ─── 组件列表 ────────────────────────────────────────────────
 
 export const customComponents = [
@@ -711,6 +834,117 @@ export const customComponents = [
     get template() { return renderStatsBar(this.defaultProps); }
   },
 
+  // 图片拼贴
+  {
+    id: 'image-collage',
+    name: '图片拼贴',
+    category: '视觉',
+    icon: 'Images',
+    preview: '多图组合排版，适合活动现场、产品细节、旅行记录',
+    defaultProps: {
+      layout: 'featured-left',
+      imageUrl1: '',
+      imageUrl2: '',
+      imageUrl3: '',
+      imageUrl4: '',
+      caption: '把现场感拼进一张图里',
+      gap: '6',
+      borderRadius: '12px',
+      fontFamily: "'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif",
+    },
+    renderFn: renderImageCollage,
+    configFields: [
+      { key: 'layout', label: '拼贴布局', type: 'select', options: [
+        { label: '主图 + 三小图', value: 'featured-left' },
+        { label: '四宫格', value: 'grid-4' },
+        { label: '杂志三图', value: 'magazine' },
+      ]},
+      { key: 'imageUrl1', label: '图片 1', type: 'imageUpload' },
+      { key: 'imageUrl2', label: '图片 2', type: 'imageUpload' },
+      { key: 'imageUrl3', label: '图片 3', type: 'imageUpload' },
+      { key: 'imageUrl4', label: '图片 4', type: 'imageUpload', showWhen: { key: 'layout', value: 'featured-left' } },
+      { key: 'caption', label: '图片说明', type: 'text', placeholder: '可留空' },
+      { key: 'gap', label: '图片间距（px）', type: 'stepper', min: 0, max: 16, step: 1 },
+      { key: 'borderRadius', label: '圆角', type: 'text', placeholder: '12px' },
+      { key: 'fontFamily', label: '字体', type: 'fontSelect' },
+    ],
+    get template() { return renderImageCollage(this.defaultProps); }
+  },
+
+  // 横幅 Hero
+  {
+    id: 'hero-banner',
+    name: '横幅 Hero',
+    category: '视觉',
+    icon: 'PanelTop',
+    preview: '文章开头主视觉，支持背景图、标题、副标题和信息条',
+    defaultProps: {
+      heroImageUrl: '',
+      eyebrow: 'WEEKEND PLAN',
+      title: '山野徒步招募中',
+      subtitle: '用一天时间走进自然，也走回自己。',
+      meta: '06.30 周日 · 杭州 · 轻徒步',
+      align: 'left',
+      minHeight: '260',
+      textColor: '#ffffff',
+      overlayColor: 'rgba(0,0,0,0.42)',
+      accentColor: '#58bb90',
+      fontFamily: "'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif",
+    },
+    renderFn: renderHeroBanner,
+    configFields: [
+      { key: 'heroImageUrl', label: '背景图片', type: 'imageUpload' },
+      { key: 'eyebrow', label: '顶部小字', type: 'text', placeholder: '如 WEEKEND PLAN' },
+      { key: 'title', label: '主标题', type: 'text', placeholder: '横幅标题' },
+      { key: 'subtitle', label: '副标题', type: 'textarea', placeholder: '一句简短描述' },
+      { key: 'meta', label: '信息条', type: 'text', placeholder: '时间 · 地点 · 类型' },
+      { key: 'align', label: '文字对齐', type: 'select', options: [
+        { label: '左对齐', value: 'left' },
+        { label: '居中', value: 'center' },
+      ]},
+      { key: 'minHeight', label: '横幅高度（px）', type: 'stepper', min: 180, max: 420, step: 10 },
+      { key: 'textColor', label: '文字颜色', type: 'color' },
+      { key: 'overlayColor', label: '图片遮罩', type: 'text', placeholder: 'rgba(0,0,0,0.42)' },
+      { key: 'accentColor', label: '强调色', type: 'color' },
+      { key: 'fontFamily', label: '字体', type: 'fontSelect' },
+    ],
+    get template() { return renderHeroBanner(this.defaultProps); }
+  },
+
+  // 徽章标签组
+  {
+    id: 'badge-group',
+    name: '徽章标签组',
+    category: '视觉',
+    icon: 'Tags',
+    preview: '一组轻量标签，适合展示亮点、限制、适用人群',
+    defaultProps: {
+      items: ['新手友好', '小队出行', '风景出片', '限 30 人'],
+      variant: 'soft',
+      accentColor: '#58bb90',
+      bgColor: '#f5f7f6',
+      align: 'left',
+      fontFamily: "'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif",
+    },
+    renderFn: renderBadgeGroup,
+    configFields: [
+      { key: 'items', label: '标签内容', type: 'listEditor' },
+      { key: 'variant', label: '视觉风格', type: 'select', options: [
+        { label: '柔和底色', value: 'soft' },
+        { label: '实心标签', value: 'solid' },
+        { label: '描边标签', value: 'outline' },
+      ]},
+      { key: 'align', label: '对齐方式', type: 'select', options: [
+        { label: '左对齐', value: 'left' },
+        { label: '居中', value: 'center' },
+      ]},
+      { key: 'accentColor', label: '主题色', type: 'color' },
+      { key: 'bgColor', label: '柔和背景色', type: 'color', showWhen: { key: 'variant', value: 'soft' } },
+      { key: 'fontFamily', label: '字体', type: 'fontSelect' },
+    ],
+    get template() { return renderBadgeGroup(this.defaultProps); }
+  },
+
 ];
 
 // 按分类分组
@@ -724,4 +958,5 @@ export const componentCategories = [
   { id: '列表', name: '列表', icon: 'List' },
   { id: '强调', name: '强调', icon: 'Quote' },
   { id: '数据', name: '数据', icon: 'BarChart3' },
+  { id: '视觉', name: '视觉', icon: 'Images' },
 ];

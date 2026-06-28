@@ -12,6 +12,8 @@ import {
 import { customComponents, componentCategories } from '@/components/CustomComponentDefinitions';
 import BlockEditor from '@/components/BlockEditor';
 import SaveTemplateDialog from '@/components/SaveTemplateDialog';
+import ConfirmActionDialog from '@/components/ConfirmActionDialog';
+import { getExportPixelRatio, getFontEmbedCSS } from '@/components/ImageGenerator';
 import BlocksPreview from '@/components/BlocksPreview';
 import ComponentConfigDrawer from '@/components/ComponentConfigDrawer';
 import WechatStyleWrapper from '@/components/WechatStyleWrapper';
@@ -25,9 +27,10 @@ import {
   LayoutTemplate, Eye, Plus, Settings2, X, ChevronLeft,
   Trash2, ChevronUp, ChevronDown, Download, Image as ImageIcon,
   Type, AlignLeft, Grid, ChevronDown as ChevronDownIcon, Scissors, BookmarkPlus,
-  MoreHorizontal,
+  MoreHorizontal, RefreshCw,
 } from 'lucide-react';
 import { loadDraft, saveDraft } from '@/lib/draftStore';
+import templateStore from '@/lib/templateStore';
 
 // ── id 生成 ──────────────────────────────────────────────────
 let _idCounter = 1;
@@ -47,6 +50,9 @@ const MobileEditor = () => {
   const [sliceHeight, setSliceHeight] = useState(2000);
   const [showSliceDialog, setShowSliceDialog] = useState(false);
   const [showSaveTemplate, setShowSaveTemplate] = useState(false);
+  const [currentTemplate, setCurrentTemplate] = useState(null);
+  const [updatingTemplate, setUpdatingTemplate] = useState(false);
+  const [confirmAction, setConfirmAction] = useState(null);
   const previewRef = useRef(null);
 
   useEffect(() => {
@@ -107,13 +113,19 @@ const MobileEditor = () => {
     const el = document.querySelector('.mobile-preview-export');
     if (!el) { toast.error('预览区未准备好'); return; }
     try {
-      const opts = { quality: 1, pixelRatio: 2, backgroundColor: '#ffffff' };
+      const pixelRatio = getExportPixelRatio(el);
+      const opts = {
+        quality: 1,
+        pixelRatio,
+        backgroundColor: '#ffffff',
+        fontEmbedCSS: await getFontEmbedCSS(),
+      };
       const dataUrl = format === 'png' ? await toPng(el, opts) : await toJpeg(el, { ...opts, quality: 0.95 });
       const link = document.createElement('a');
       link.download = `article.${format}`;
       link.href = dataUrl;
       link.click();
-      toast.success('图片导出成功！');
+      toast.success(`图片导出成功，宽度约 ${Math.round(el.getBoundingClientRect().width * pixelRatio)}px`);
     } catch (e) {
       toast.error('导出失败，请重试');
     }
@@ -124,7 +136,12 @@ const MobileEditor = () => {
     const el = document.querySelector('.mobile-preview-export');
     if (!el) { toast.error('预览区未准备好'); return; }
     try {
-      const opts = { quality: 1, pixelRatio: 2, backgroundColor: '#ffffff' };
+      const opts = {
+        quality: 1,
+        pixelRatio: getExportPixelRatio(el),
+        backgroundColor: '#ffffff',
+        fontEmbedCSS: await getFontEmbedCSS(),
+      };
       const blob = await toBlob(el, {
         ...opts,
         type: format === 'png' ? 'image/png' : 'image/jpeg',
@@ -138,6 +155,53 @@ const MobileEditor = () => {
       console.error('分段导出失败:', e);
       toast.error('分段导出失败，请重试');
     }
+  };
+
+  const handleUpdateCurrentTemplate = async () => {
+    if (!currentTemplate?.id) return;
+    setUpdatingTemplate(true);
+    try {
+      const saved = await templateStore.updateBlocks(
+        currentTemplate.id,
+        JSON.parse(JSON.stringify(blocks)),
+        '更新原模板',
+      );
+      setCurrentTemplate({
+        id: saved.id,
+        name: saved.name,
+        version: saved.version,
+      });
+      toast.success(`模板已更新到 v${saved.version}`);
+    } catch (error) {
+      toast.error('更新失败：' + error.message);
+    } finally {
+      setUpdatingTemplate(false);
+    }
+  };
+
+  const handleTemplateSaved = (saved) => {
+    setCurrentTemplate({
+      id: saved.id,
+      name: saved.name,
+      version: saved.version,
+    });
+  };
+
+  const clearContent = () => {
+    setBlocks([]);
+    setSelectedBlockId(null);
+    setCurrentTemplate(null);
+    toast.success('已清空');
+  };
+
+  const handleClearContent = () => {
+    setConfirmAction({
+      title: '清空内容',
+      description: '确定清空当前编辑器里的所有内容吗？该操作不会删除已保存的模板，但当前草稿内容会被清空。',
+      confirmText: '清空',
+      destructive: true,
+      onConfirm: clearContent,
+    });
   };
 
   // 过滤组件
@@ -188,15 +252,21 @@ const MobileEditor = () => {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-36">
+              {currentTemplate && (
+                <DropdownMenuItem onClick={handleUpdateCurrentTemplate} disabled={blocks.length === 0 || updatingTemplate}>
+                  <RefreshCw size={14} className="mr-2" />
+                  更新原模板
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem onClick={() => setShowSaveTemplate(true)} disabled={blocks.length === 0}>
                 <BookmarkPlus size={14} className="mr-2" />
-                存为模板
+                另存新模板
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 disabled={blocks.length === 0}
                 className="text-destructive focus:text-destructive"
-                onClick={() => { setBlocks([]); setSelectedBlockId(null); toast.success('已清空'); }}
+                onClick={handleClearContent}
               >
                 清空内容
               </DropdownMenuItem>
@@ -410,6 +480,21 @@ const MobileEditor = () => {
         open={showSaveTemplate}
         onClose={() => setShowSaveTemplate(false)}
         blocks={blocks}
+        onSaved={handleTemplateSaved}
+      />
+      <ConfirmActionDialog
+        open={Boolean(confirmAction)}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) setConfirmAction(null);
+        }}
+        title={confirmAction?.title}
+        description={confirmAction?.description}
+        confirmText={confirmAction?.confirmText}
+        destructive={confirmAction?.destructive}
+        onConfirm={() => {
+          confirmAction?.onConfirm?.();
+          setConfirmAction(null);
+        }}
       />
     </div>
   );

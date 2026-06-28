@@ -44,6 +44,16 @@ const normalizeTemplatePayload = (body, existing = {}) => {
   };
 };
 
+const normalizeVersionNote = (value) => {
+  const note = String(value || '').trim();
+  if (note.length > 200) {
+    const error = new Error('版本备注不能超过 200 个字符');
+    error.status = 400;
+    throw error;
+  }
+  return note;
+};
+
 router.get('/', (req, res) => {
   res.json({ data: templateDb.list() });
 });
@@ -51,7 +61,9 @@ router.get('/', (req, res) => {
 router.post('/', (req, res, next) => {
   try {
     const payload = normalizeTemplatePayload(req.body || {});
-    const saved = templateDb.save(payload);
+    const saved = templateDb.save(payload, {
+      note: normalizeVersionNote(req.body?.versionNote || '创建模板'),
+    });
     res.status(201).json({ data: saved });
   } catch (error) {
     next(error);
@@ -75,11 +87,42 @@ router.put('/:id', (req, res, next) => {
       return;
     }
     const payload = normalizeTemplatePayload({ ...req.body, id: req.params.id }, existing);
-    const saved = templateDb.save(payload);
+    const saved = templateDb.save(payload, {
+      note: normalizeVersionNote(req.body?.versionNote || '更新模板'),
+    });
     res.json({ data: saved });
   } catch (error) {
     next(error);
   }
+});
+
+router.get('/:id/versions', (req, res) => {
+  const template = templateDb.get(req.params.id);
+  if (!template) {
+    res.status(404).json({ error: '模板不存在' });
+    return;
+  }
+  res.json({
+    data: templateDb.versions(req.params.id, {
+      page: req.query.page,
+      pageSize: req.query.pageSize,
+    }),
+  });
+});
+
+router.post('/:id/restore/:version', (req, res) => {
+  const versionNumber = Number.parseInt(req.params.version, 10);
+  if (!Number.isFinite(versionNumber) || versionNumber < 1) {
+    res.status(400).json({ error: '版本号不正确' });
+    return;
+  }
+
+  const saved = templateDb.restore(req.params.id, versionNumber);
+  if (!saved) {
+    res.status(404).json({ error: '模板或版本不存在' });
+    return;
+  }
+  res.json({ data: saved });
 });
 
 router.delete('/:id', (req, res) => {

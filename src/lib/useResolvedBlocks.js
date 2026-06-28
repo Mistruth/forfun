@@ -1,7 +1,15 @@
 import { useEffect, useState } from 'react';
 import { resolveImageValue } from '@/lib/imageStore';
 
-const IMAGE_FIELD_KEYS = new Set(['url', 'imageUrl']);
+const IMAGE_FIELD_KEYS = new Set([
+  'url',
+  'imageUrl',
+  'heroImageUrl',
+  'imageUrl1',
+  'imageUrl2',
+  'imageUrl3',
+  'imageUrl4',
+]);
 
 const resolveValue = async (key, value) => {
   if (IMAGE_FIELD_KEYS.has(key) && typeof value === 'string') {

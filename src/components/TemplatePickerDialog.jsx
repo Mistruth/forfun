@@ -10,11 +10,13 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { templates, templateCategories } from './Templates';
-import { LayoutTemplate, CheckCircle2, Pencil, Trash2 } from 'lucide-react';
+import { LayoutTemplate, CheckCircle2, Pencil, Trash2, History, RotateCcw } from 'lucide-react';
 import { toast } from 'sonner';
 import templateStore from '@/lib/templateStore';
+import ConfirmActionDialog from '@/components/ConfirmActionDialog';
 
 const EMOJI_OPTIONS = ['📄', '📝', '🎨', '🏔️', '🎉', '📦', '💡', '🚀', '❤️', '🌟'];
+const VERSION_PAGE_SIZE = 10;
 
 /**
  * 模板选择弹窗
@@ -31,6 +33,16 @@ const TemplatePickerDialog = ({ open, onClose, onApply }) => {
   const [editName, setEditName] = useState('');
   const [editDesc, setEditDesc] = useState('');
   const [editCover, setEditCover] = useState('📄');
+  const [historyTpl, setHistoryTpl] = useState(null);
+  const [versions, setVersions] = useState([]);
+  const [versionPagination, setVersionPagination] = useState({
+    page: 1,
+    pageSize: VERSION_PAGE_SIZE,
+    total: 0,
+    totalPages: 1,
+  });
+  const [loadingVersions, setLoadingVersions] = useState(false);
+  const [confirmAction, setConfirmAction] = useState(null);
 
   const loadUserTemplates = useCallback(async () => {
     try {
@@ -60,15 +72,30 @@ const TemplatePickerDialog = ({ open, onClose, onApply }) => {
       id: `block_${counter++}_tpl`,
       props: b.props ? { ...b.props } : undefined,
     }));
-    onApply(freshBlocks);
+    onApply(freshBlocks, {
+      id: tpl.id,
+      name: tpl.name,
+      version: tpl.version,
+      source: userTemplates.some((item) => item.id === tpl.id) ? 'user' : 'built-in',
+    });
     onClose();
   };
 
-  const handleDelete = async (id) => {
-    if (!confirm('确定删除该模板？')) return;
+  const deleteTemplate = async (id) => {
     await templateStore.remove(id);
     toast.success('模板已删除');
     loadUserTemplates();
+  };
+
+  const handleDelete = (tpl) => {
+    setConfirmAction({
+      type: 'delete',
+      title: '删除模板',
+      description: `确定删除「${tpl.name}」吗？删除后该模板及版本历史都会被移除，无法恢复。`,
+      confirmText: '删除',
+      destructive: true,
+      onConfirm: () => deleteTemplate(tpl.id),
+    });
   };
 
   const startEdit = (tpl) => {
@@ -92,7 +119,70 @@ const TemplatePickerDialog = ({ open, onClose, onApply }) => {
     loadUserTemplates();
   };
 
-  const isUserTemplate = (tpl) => tpl.id && String(tpl.id).startsWith('tpl_user_');
+  const loadVersionsPage = async (templateId, page = 1) => {
+    const result = await templateStore.getVersions(templateId, {
+      page,
+      pageSize: VERSION_PAGE_SIZE,
+    });
+    setVersions(result.items || []);
+    setVersionPagination({
+      page: result.page || 1,
+      pageSize: result.pageSize || VERSION_PAGE_SIZE,
+      total: result.total || 0,
+      totalPages: result.totalPages || 1,
+    });
+  };
+
+  const openVersions = async (tpl) => {
+    setHistoryTpl(tpl);
+    setVersions([]);
+    setLoadingVersions(true);
+    try {
+      await loadVersionsPage(tpl.id, 1);
+    } catch (error) {
+      toast.error('加载版本失败：' + error.message);
+    } finally {
+      setLoadingVersions(false);
+    }
+  };
+
+  const changeVersionPage = async (page) => {
+    if (!historyTpl) return;
+    setLoadingVersions(true);
+    try {
+      await loadVersionsPage(historyTpl.id, page);
+    } catch (error) {
+      toast.error('加载版本失败：' + error.message);
+    } finally {
+      setLoadingVersions(false);
+    }
+  };
+
+  const restoreVersionNow = async (version) => {
+    if (!historyTpl) return;
+    try {
+      const saved = await templateStore.restoreVersion(historyTpl.id, version);
+      toast.success(`已恢复到 v${version}`);
+      setHistoryTpl(saved);
+      await loadVersionsPage(saved.id, versionPagination.page);
+      loadUserTemplates();
+    } catch (error) {
+      toast.error('恢复失败：' + error.message);
+    }
+  };
+
+  const restoreVersion = (version) => {
+    setConfirmAction({
+      type: 'restore',
+      title: '恢复版本',
+      description: `确定将「${historyTpl?.name || '模板'}」恢复到 v${version} 吗？当前内容不会丢失，系统会创建一个新的当前版本。`,
+      confirmText: '恢复',
+      destructive: false,
+      onConfirm: () => restoreVersionNow(version),
+    });
+  };
+
+  const isUserTemplate = (tpl) => userTemplates.some((item) => item.id === tpl.id);
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
@@ -167,10 +257,92 @@ const TemplatePickerDialog = ({ open, onClose, onApply }) => {
             </div>
           )}
 
+          {historyTpl && (
+            <div className="rounded-lg border bg-muted p-4 mb-3">
+              <div className="flex items-center justify-between gap-3 mb-3">
+                <div className="min-w-0">
+                  <div className="text-sm font-medium truncate">版本历史：{historyTpl.name}</div>
+                  <div className="text-xs text-muted-foreground">
+                    共 {versionPagination.total} 个版本，恢复历史版本会创建新的当前版本
+                  </div>
+                </div>
+                <Button size="sm" variant="ghost" onClick={() => setHistoryTpl(null)}>
+                  关闭
+                </Button>
+              </div>
+              {loadingVersions ? (
+                <div className="py-6 text-sm text-muted-foreground text-center">加载中...</div>
+              ) : versions.length === 0 ? (
+                <div className="py-6 text-sm text-muted-foreground text-center">暂无版本记录</div>
+              ) : (
+                <>
+                  <div className="space-y-2 max-h-56 overflow-y-auto">
+                    {versions.map((item) => (
+                      <div
+                        key={item.id}
+                        className="flex items-center justify-between gap-3 rounded-md bg-background px-3 py-2"
+                      >
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium">v{item.version}</span>
+                            {item.version === historyTpl.version && (
+                              <Badge variant="secondary" className="text-xs border-0">当前</Badge>
+                            )}
+                            <span className="text-xs text-muted-foreground">
+                              {new Date(item.createdAt).toLocaleString()}
+                            </span>
+                          </div>
+                          {item.note && (
+                            <div className="text-xs text-muted-foreground truncate mt-0.5">
+                              {item.note}
+                            </div>
+                          )}
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => restoreVersion(item.version)}
+                          disabled={item.version === historyTpl.version}
+                          className="shrink-0"
+                        >
+                          <RotateCcw size={14} className="mr-1" />
+                          恢复
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                  {versionPagination.totalPages > 1 && (
+                    <div className="flex items-center justify-between pt-3">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => changeVersionPage(versionPagination.page - 1)}
+                        disabled={loadingVersions || versionPagination.page <= 1}
+                      >
+                        上一页
+                      </Button>
+                      <span className="text-xs text-muted-foreground">
+                        {versionPagination.page} / {versionPagination.totalPages}
+                      </span>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => changeVersionPage(versionPagination.page + 1)}
+                        disabled={loadingVersions || versionPagination.page >= versionPagination.totalPages}
+                      >
+                        下一页
+                      </Button>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+
           {filtered.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground text-sm">
               <p>还没有保存过模板</p>
-              <p className="mt-1">在编辑器中点击「存为模板」来保存当前内容</p>
+              <p className="mt-1">在编辑器中点击「另存新模板」来保存当前内容</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-3 mt-2">
@@ -211,6 +383,11 @@ const TemplatePickerDialog = ({ open, onClose, onApply }) => {
                               {new Date(tpl.updatedAt).toLocaleDateString()}
                             </span>
                           )}
+                          {tpl.version && (
+                            <span className="text-xs text-muted-foreground">
+                              v{tpl.version}
+                            </span>
+                          )}
                         </div>
                         {tpl.description && (
                           <p className="text-sm text-muted-foreground mt-1 leading-relaxed line-clamp-2">
@@ -243,20 +420,36 @@ const TemplatePickerDialog = ({ open, onClose, onApply }) => {
                         </Button>
                         {isUser && (
                           <div className="flex gap-1">
-                            <button
+                            <Button
+                              size="sm"
+                              variant="ghost"
                               onClick={() => startEdit(tpl)}
-                              className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-info transition-colors"
+                              className="h-7 px-2 text-xs"
                               title="编辑"
                             >
-                              <Pencil size={14} />
-                            </button>
-                            <button
-                              onClick={() => handleDelete(tpl.id)}
-                              className="p-1.5 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                              <Pencil size={14} className="mr-1" />
+                              编辑
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => openVersions(tpl)}
+                              className="h-7 px-2 text-xs"
+                              title="版本历史"
+                            >
+                              <History size={14} className="mr-1" />
+                              版本
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handleDelete(tpl)}
+                              className="h-7 px-2 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
                               title="删除"
                             >
-                              <Trash2 size={14} />
-                            </button>
+                              <Trash2 size={14} className="mr-1" />
+                              删除
+                            </Button>
                           </div>
                         )}
                       </div>
@@ -268,6 +461,20 @@ const TemplatePickerDialog = ({ open, onClose, onApply }) => {
           )}
         </div>
       </DialogContent>
+      <ConfirmActionDialog
+        open={Boolean(confirmAction)}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) setConfirmAction(null);
+        }}
+        title={confirmAction?.title}
+        description={confirmAction?.description}
+        confirmText={confirmAction?.confirmText}
+        destructive={confirmAction?.destructive}
+        onConfirm={() => {
+          confirmAction?.onConfirm?.();
+          setConfirmAction(null);
+        }}
+      />
     </Dialog>
   );
 };

@@ -107,18 +107,27 @@ pnpm preview   # 预览生产构建
 项目使用多阶段 Docker 构建（node:20），本地 `docker-compose.yml` 使用 `build:` 模式用于开发调试。
 
 ```bash
-# 本地构建并启动
-docker compose up -d --build
+# 本地构建并启动（访问 http://127.0.0.1:9090/）
+DOCKER_API_VERSION=1.43 PORT=9090 docker compose up -d --build
 
 # 查看日志
-docker compose logs -f
+DOCKER_API_VERSION=1.43 PORT=9090 docker compose logs -f app
+
+# 查看状态
+DOCKER_API_VERSION=1.43 PORT=9090 docker compose ps
+
+# 停止服务
+DOCKER_API_VERSION=1.43 PORT=9090 docker compose down
 ```
 
-部署到 forfun 服务器时使用预构建镜像模式（`image: forfun-app:latest`），需指定 `--platform linux/amd64`（本地 Mac 为 ARM）。完整流程见 [部署指南](docs/deploy-to-forfun.md)。
+本地 Docker 默认将宿主机 `9090` 映射到容器内 `8080`，数据保存在 Docker 命名卷 `app-data`。当前本机 Docker CLI 与 daemon 版本不一致时需加 `DOCKER_API_VERSION=1.43`。完整本地流程见 [本地 Docker 部署指南](docs/local-docker-deploy.md)。
+
+部署到 forfun 服务器时使用预构建镜像模式（`image: forfun-app:latest`），需指定 `--platform linux/amd64`（本地 Mac 为 ARM）。完整远程流程见 [部署至 forfun 服务器指南](docs/deploy-to-forfun.md)。
 
 ---
 
 ## 参考文档
 
 - **[部署指南](docs/deploy-to-forfun.md)** — 本地构建 Docker 镜像 → 传输到 forfun 服务器 → 启动容器的完整流程，含一键部署命令和常见问题排查。
+- **[本地 Docker 部署指南](docs/local-docker-deploy.md)** — 本地 9090 端口构建、启动、验证、日志、停止和数据卷说明。
 - **[UI 修改必看](docs/ui-style-reference.md)** — 视觉语言与交互规范。所有 UI 开发必须遵守：颜色 token、字号纪律、交互状态（hover/active/focus）、反模式清单、提交前检查清单。

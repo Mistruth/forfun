@@ -31,7 +31,7 @@ const toDataUrl = async (url) => {
 };
 
 let _fontEmbedCSSCache = null;
-const getFontEmbedCSS = async () => {
+export const getFontEmbedCSS = async () => {
   if (_fontEmbedCSSCache) return _fontEmbedCSSCache;
   const [fangYuanData, agileData] = await Promise.all([
     toDataUrl(fangYuanUrl),
@@ -54,6 +54,16 @@ const getFontEmbedCSS = async () => {
 };
 
 const DEFAULT_SLICE_HEIGHT = 2000;
+export const MIN_EXPORT_WIDTH = 1080;
+export const MAX_EXPORT_PIXEL_RATIO = 4;
+
+export const getExportPixelRatio = (element) => {
+  const width = element.getBoundingClientRect().width || element.offsetWidth || 420;
+  return Math.min(
+    MAX_EXPORT_PIXEL_RATIO,
+    Math.max(2, MIN_EXPORT_WIDTH / width),
+  );
+};
 
 const ImageGenerator = () => {
   const [sliceHeight, setSliceHeight] = useState(DEFAULT_SLICE_HEIGHT);
@@ -68,9 +78,10 @@ const ImageGenerator = () => {
     try {
       const element = previewElement;
       const fontEmbedCSS = await getFontEmbedCSS();
+      const pixelRatio = getExportPixelRatio(element);
       const options = {
         quality: 1,
-        pixelRatio: 2,
+        pixelRatio,
         backgroundColor: '#ffffff',
         fontEmbedCSS,
       };
@@ -91,7 +102,7 @@ const ImageGenerator = () => {
       link.href = dataUrl;
       link.click();
 
-      toast.success('图片生成成功！');
+      toast.success(`图片生成成功，宽度约 ${Math.round(element.getBoundingClientRect().width * pixelRatio)}px`);
     } catch (error) {
       console.error('生成图片失败:', error);
       toast.error('生成图片失败，请重试');
@@ -107,7 +118,12 @@ const ImageGenerator = () => {
 
     try {
       const fontEmbedCSS = await getFontEmbedCSS();
-      const options = { quality: 1, pixelRatio: 2, backgroundColor: '#ffffff', fontEmbedCSS };
+      const options = {
+        quality: 1,
+        pixelRatio: getExportPixelRatio(previewElement),
+        backgroundColor: '#ffffff',
+        fontEmbedCSS,
+      };
       const blob = await toBlob(previewElement, {
         ...options,
         type: format === 'png' ? 'image/png' : 'image/jpeg',

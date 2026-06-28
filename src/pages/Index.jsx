@@ -8,11 +8,12 @@ import { ComponentConfigPanel } from '@/components/ComponentConfigDrawer';
 import {
   Copy, PanelLeftClose, Sparkles, PanelLeft,
   LayoutTemplate, Eye, X, Save, BookmarkPlus, Download, Upload,
-  MoreHorizontal, Settings2,
+  MoreHorizontal, Settings2, RefreshCw,
 } from 'lucide-react';
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import TemplatePickerDialog from '@/components/TemplatePickerDialog';
 import SaveTemplateDialog from '@/components/SaveTemplateDialog';
+import ConfirmActionDialog from '@/components/ConfirmActionDialog';
 import BlocksPreview from '@/components/BlocksPreview';
 import WechatStyleWrapper from '@/components/WechatStyleWrapper';
 import { Button } from '@/components/ui/button';
@@ -24,6 +25,12 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -34,10 +41,17 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { customComponents } from '@/components/CustomComponentDefinitions';
 import { loadDraft, saveDraft } from '@/lib/draftStore';
+import templateStore from '@/lib/templateStore';
 
 let _idCounter = 1;
 const genId = () => `block_${Date.now()}_${_idCounter++}`;
 
+const HeaderTooltip = ({ label, children }) => (
+  <Tooltip>
+    <TooltipTrigger asChild>{children}</TooltipTrigger>
+    <TooltipContent side="bottom">{label}</TooltipContent>
+  </Tooltip>
+);
 
 const normalizeImportedBlocks = (data) => {
   const importedBlocks = Array.isArray(data) ? data : data?.blocks;
@@ -83,6 +97,9 @@ const Index = () => {
   const [showSaveTemplate, setShowSaveTemplate] = useState(false);
   const [schemaDialogMode, setSchemaDialogMode] = useState(null);
   const [schemaDraft, setSchemaDraft] = useState('');
+  const [currentTemplate, setCurrentTemplate] = useState(null);
+  const [updatingTemplate, setUpdatingTemplate] = useState(false);
+  const [confirmAction, setConfirmAction] = useState(null);
 
   // 草稿：启动时尝试恢复
   const [draftSavedAt, setDraftSavedAt] = useState(() => loadDraft()?.savedAt || null);
@@ -138,16 +155,28 @@ const Index = () => {
 
   const schemaText = useMemo(() => JSON.stringify({ blocks }, null, 2), [blocks]);
 
-  const handleApplyTemplate = useCallback((templateBlocks) => {
+  const handleApplyTemplate = useCallback((templateBlocks, templateMeta) => {
     setBlocks(templateBlocks);
     setSelectedBlockId(null);
+    setCurrentTemplate(templateMeta || null);
     toast.success('模板已加载，开始编辑吧！');
   }, [setBlocks]);
 
-  const handleClear = () => {
+  const clearContent = () => {
     setBlocks([]);
     setSelectedBlockId(null);
+    setCurrentTemplate(null);
     toast.success('内容已清空');
+  };
+
+  const handleClear = () => {
+    setConfirmAction({
+      title: '清空内容',
+      description: '确定清空当前编辑器里的所有内容吗？该操作不会删除已保存的模板，但当前草稿内容会被清空。',
+      confirmText: '清空',
+      destructive: true,
+      onConfirm: clearContent,
+    });
   };
 
   const handleOpenImportSchema = useCallback(() => {
@@ -165,6 +194,7 @@ const Index = () => {
       const importedBlocks = normalizeImportedBlocks(data);
       setBlocks(importedBlocks);
       setSelectedBlockId(null);
+      setCurrentTemplate(null);
       setSchemaDialogMode(null);
       toast.success(`已导入 ${importedBlocks.length} 个块`);
     } catch (error) {
@@ -212,6 +242,38 @@ const Index = () => {
     setSelectedBlockId(null);
   }, []);
 
+  const handleUpdateCurrentTemplate = useCallback(async () => {
+    if (!currentTemplate?.id || currentTemplate.source !== 'user') return;
+    setUpdatingTemplate(true);
+    try {
+      const saved = await templateStore.updateBlocks(
+        currentTemplate.id,
+        JSON.parse(JSON.stringify(blocks)),
+        '更新原模板',
+      );
+      setCurrentTemplate({
+        id: saved.id,
+        name: saved.name,
+        version: saved.version,
+        source: 'user',
+      });
+      toast.success(`模板「${saved.name}」已更新到 v${saved.version}`);
+    } catch (error) {
+      toast.error('更新失败：' + error.message);
+    } finally {
+      setUpdatingTemplate(false);
+    }
+  }, [blocks, currentTemplate]);
+
+  const handleTemplateSaved = useCallback((saved) => {
+    setCurrentTemplate({
+      id: saved.id,
+      name: saved.name,
+      version: saved.version,
+      source: 'user',
+    });
+  }, []);
+
   // 草稿保存时间格式化
   const draftTimeStr = useMemo(() => {
     if (!draftSavedAt) return null;
@@ -245,75 +307,108 @@ const Index = () => {
               {showComponentPanel ? <PanelLeftClose size={16} /> : <PanelLeft size={16} />}
               <span className="hidden sm:inline">{showComponentPanel ? '收起面板' : '组件面板'}</span>
             </Button>
-            <h2 className="font-medium text-base truncate">公众号长图工具</h2>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setShowTemplatePicker(true)}
-              className="flex items-center gap-1"
-            >
-              <LayoutTemplate size={14} />
-              <span className="hidden sm:inline">模板</span>
-            </Button>
-            <Button
-              size="sm"
-              className="flex items-center gap-1 bg-brand text-brand-foreground hover:bg-brand/80"
-              onClick={() => setShowPreview(true)}
-            >
-              <Eye size={14} />
-              <span className="hidden sm:inline">预览</span>
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleSaveDraft}
-              className="flex items-center gap-1"
-              title="保存草稿 (Ctrl+S)"
-            >
-              <Save size={14} />
-              <span className="hidden sm:inline">保存</span>
-            </Button>
-            {draftTimeStr && (
-              <span className="text-xs text-muted-foreground whitespace-nowrap">{draftTimeStr} 已保存</span>
+            {currentTemplate && (
+              <span className="hidden lg:inline text-xs text-muted-foreground truncate max-w-[220px]">
+                来源：{currentTemplate.name}
+                {currentTemplate.version ? ` v${currentTemplate.version}` : ''}
+                {currentTemplate.source === 'built-in' ? '（内置模板需另存后更新）' : ''}
+              </span>
             )}
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setShowSaveTemplate(true)}
-              disabled={blocks.length === 0}
-              className="flex items-center gap-1"
-              title="存为模板"
-            >
-              <BookmarkPlus size={14} />
-              <span className="hidden sm:inline">存为模板</span>
-            </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button size="sm" variant="outline" className="h-8 w-8 p-0" title="更多操作">
-                  <MoreHorizontal size={16} />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-44">
-                <DropdownMenuItem onClick={handleOpenImportSchema}>
-                  <Upload size={14} className="mr-2" />
-                  导入 Schema
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleOpenExportSchema} disabled={blocks.length === 0}>
-                  <Download size={14} className="mr-2" />
-                  导出 Schema
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={handleClear}
-                  disabled={blocks.length === 0}
-                  className="text-destructive focus:text-destructive"
-                >
-                  清空
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            {draftTimeStr && (
+              <span className="hidden md:inline text-xs text-muted-foreground whitespace-nowrap">
+                {draftTimeStr} 已保存
+              </span>
+            )}
           </div>
+          <TooltipProvider delayDuration={200}>
+            <div className="flex items-center gap-2">
+              <HeaderTooltip label="模板">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setShowTemplatePicker(true)}
+                  className="h-8 w-8 p-0"
+                  aria-label="模板"
+                >
+                  <LayoutTemplate size={14} />
+                </Button>
+              </HeaderTooltip>
+              <HeaderTooltip label="预览">
+                <Button
+                  size="sm"
+                  className="flex items-center gap-1 bg-brand text-brand-foreground hover:bg-brand/80"
+                  onClick={() => setShowPreview(true)}
+                  aria-label="预览"
+                >
+                  <Eye size={14} />
+                  <span className="hidden sm:inline">预览</span>
+                </Button>
+              </HeaderTooltip>
+              <HeaderTooltip label="保存草稿 (Ctrl+S)">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleSaveDraft}
+                  className="h-8 w-8 p-0"
+                  aria-label="保存草稿"
+                >
+                  <Save size={14} />
+                </Button>
+              </HeaderTooltip>
+              {currentTemplate?.source === 'user' && (
+                <HeaderTooltip label={updatingTemplate ? '更新中...' : '更新原模板'}>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleUpdateCurrentTemplate}
+                    disabled={blocks.length === 0 || updatingTemplate}
+                    className="h-8 w-8 p-0"
+                    aria-label="更新原模板"
+                  >
+                    <RefreshCw size={14} className={updatingTemplate ? 'animate-spin' : ''} />
+                  </Button>
+                </HeaderTooltip>
+              )}
+              <HeaderTooltip label="另存为新模板">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setShowSaveTemplate(true)}
+                  disabled={blocks.length === 0}
+                  className="h-8 w-8 p-0"
+                  aria-label="另存为新模板"
+                >
+                  <BookmarkPlus size={14} />
+                </Button>
+              </HeaderTooltip>
+              <DropdownMenu>
+                <HeaderTooltip label="更多操作">
+                  <DropdownMenuTrigger asChild>
+                    <Button size="sm" variant="outline" className="h-8 w-8 p-0" aria-label="更多操作">
+                      <MoreHorizontal size={16} />
+                    </Button>
+                  </DropdownMenuTrigger>
+                </HeaderTooltip>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuItem onClick={handleOpenImportSchema}>
+                    <Upload size={14} className="mr-2" />
+                    导入 Schema
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleOpenExportSchema} disabled={blocks.length === 0}>
+                    <Download size={14} className="mr-2" />
+                    导出 Schema
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={handleClear}
+                    disabled={blocks.length === 0}
+                    className="text-destructive focus:text-destructive"
+                  >
+                    清空
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </TooltipProvider>
         </div>
 
         {/* 编辑器内容 */}
@@ -410,6 +505,7 @@ const Index = () => {
         open={showSaveTemplate}
         onClose={() => setShowSaveTemplate(false)}
         blocks={blocks}
+        onSaved={handleTemplateSaved}
       />
       <Dialog open={Boolean(schemaDialogMode)} onOpenChange={(open) => !open && setSchemaDialogMode(null)}>
         <DialogContent className="max-w-3xl">
@@ -445,6 +541,20 @@ const Index = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <ConfirmActionDialog
+        open={Boolean(confirmAction)}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) setConfirmAction(null);
+        }}
+        title={confirmAction?.title}
+        description={confirmAction?.description}
+        confirmText={confirmAction?.confirmText}
+        destructive={confirmAction?.destructive}
+        onConfirm={() => {
+          confirmAction?.onConfirm?.();
+          setConfirmAction(null);
+        }}
+      />
     </div>
   );
 };
