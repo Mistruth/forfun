@@ -13,15 +13,20 @@ import { customComponents, componentCategories } from '@/components/CustomCompon
 import BlockEditor from '@/components/BlockEditor';
 import SaveTemplateDialog from '@/components/SaveTemplateDialog';
 import ConfirmActionDialog from '@/components/ConfirmActionDialog';
-import { getExportPixelRatio, getFontEmbedCSS } from '@/components/ImageGenerator';
+import {
+  getExportPixelRatio,
+  getFontEmbedCSS,
+  getSafeSliceHeight,
+  isSingleImageSafe,
+} from '@/components/ImageGenerator';
 import BlocksPreview from '@/components/BlocksPreview';
 import ComponentConfigDrawer from '@/components/ComponentConfigDrawer';
 import WechatStyleWrapper from '@/components/WechatStyleWrapper';
-import { toPng, toJpeg, toBlob } from 'html-to-image';
 import {
-  downloadImageSlices,
+  downloadElementSlices,
   getExportElementHeight,
   getNonBreakingSliceRanges,
+  MAX_EXPORT_FILE_BYTES,
 } from '@/lib/exportSlices';
 import {
   LayoutTemplate, Eye, Plus, Settings2, X, ChevronLeft,
@@ -112,48 +117,62 @@ const MobileEditor = () => {
   const handleExport = async (format = 'png') => {
     const el = document.querySelector('.mobile-preview-export');
     if (!el) { toast.error('预览区未准备好'); return; }
+    const pixelRatio = getExportPixelRatio(el);
+    if (!isSingleImageSafe(el, pixelRatio)) {
+      toast.info('内容较长，为避免画质下降，将自动高清分段导出');
+      await handleSliceExport(format, true);
+      return;
+    }
     try {
-      const pixelRatio = getExportPixelRatio(el);
-      const opts = {
-        quality: 1,
+      const fullRange = { start: 0, end: Math.ceil(getExportElementHeight(el)) };
+      const { count, width, largestBytes, reducedCount } = await downloadElementSlices(el, format, [fullRange], {
+        quality: format === 'png' ? 1 : 0.98,
         pixelRatio,
         backgroundColor: '#ffffff',
         fontEmbedCSS: await getFontEmbedCSS(),
-      };
-      const dataUrl = format === 'png' ? await toPng(el, opts) : await toJpeg(el, { ...opts, quality: 0.95 });
-      const link = document.createElement('a');
-      link.download = `article.${format}`;
-      link.href = dataUrl;
-      link.click();
-      toast.success(`图片导出成功，宽度约 ${Math.round(el.getBoundingClientRect().width * pixelRatio)}px`);
+        baseName: 'article',
+        maxBytes: MAX_EXPORT_FILE_BYTES,
+      });
+      const size = (largestBytes / 1_000_000).toFixed(2);
+      const compression = reducedCount > 0
+        ? `；为保留完整内容块，已自动缩小 ${reducedCount} 张`
+        : '';
+      toast.success(count === 1
+        ? `图片导出成功，约 ${width}px 宽，${size}MB${compression}`
+        : `文件较大，已按完整内容块拆分为 ${count} 张，每张不超过 3MB（最大 ${size}MB）${compression}`);
     } catch (e) {
-      toast.error('导出失败，请重试');
+      toast.error(e?.message || '导出失败，请重试');
     }
   };
 
   // 分段导出图片
-  const handleSliceExport = async (format = 'png') => {
+  const handleSliceExport = async (format = 'png', automatic = false) => {
     const el = document.querySelector('.mobile-preview-export');
     if (!el) { toast.error('预览区未准备好'); return; }
     try {
+      const pixelRatio = getExportPixelRatio(el);
       const opts = {
-        quality: 1,
-        pixelRatio: getExportPixelRatio(el),
+        quality: format === 'png' ? 1 : 0.98,
+        pixelRatio,
         backgroundColor: '#ffffff',
         fontEmbedCSS: await getFontEmbedCSS(),
       };
-      const blob = await toBlob(el, {
+      const safeSliceHeight = getSafeSliceHeight(pixelRatio, sliceHeight);
+      const ranges = getNonBreakingSliceRanges(el, safeSliceHeight);
+      const { count, width, largestBytes, reducedCount } = await downloadElementSlices(el, format, ranges, {
         ...opts,
-        type: format === 'png' ? 'image/png' : 'image/jpeg',
-        ...(format === 'jpg' ? { quality: 0.95 } : {}),
+        baseName: 'article',
+        maxBytes: MAX_EXPORT_FILE_BYTES,
       });
-      const ranges = getNonBreakingSliceRanges(el, sliceHeight);
-      const sliceCount = await downloadImageSlices(blob, format, ranges, getExportElementHeight(el));
-      toast.success(`已切成 ${sliceCount} 段并导出！`);
+      const size = (largestBytes / 1_000_000).toFixed(2);
+      const compression = reducedCount > 0
+        ? `；为保留完整内容块，已自动缩小 ${reducedCount} 张`
+        : '';
+      toast.success(`${automatic ? '内容或文件较大，已自动' : '已'}按完整内容块分段导出 ${count} 张，每张不超过 3MB（最大 ${size}MB，约 ${width}px 宽）${compression}`);
       setShowSliceDialog(false);
     } catch (e) {
       console.error('分段导出失败:', e);
-      toast.error('分段导出失败，请重试');
+      toast.error(e?.message || '分段导出失败，请重试');
     }
   };
 
