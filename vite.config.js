@@ -3,12 +3,24 @@ import { defineConfig } from 'vite';
 import { resolve } from 'path';
 import react from '@vitejs/plugin-react';
 
+const apiProxyTarget = process.env.API_PROXY_TARGET;
+
 // https://vitejs.dev/config/
 export default defineConfig({
   base: '/',
   server: {
     host: '::',
     port: 5173,
+    proxy: apiProxyTarget ? {
+      '/api': {
+        target: apiProxyTarget,
+        changeOrigin: true,
+      },
+      '/uploads': {
+        target: apiProxyTarget,
+        changeOrigin: true,
+      },
+    } : undefined,
     hmr: {
       overlay: false,
     },

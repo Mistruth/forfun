@@ -63,14 +63,14 @@ const MobileEditor = () => {
   useEffect(() => {
     const timer = window.setTimeout(() => {
       try {
-        saveDraft(blocks);
+        saveDraft(blocks, { currentTemplate });
       } catch (e) {
         console.warn('自动保存草稿失败:', e);
       }
     }, 600);
 
     return () => window.clearTimeout(timer);
-  }, [blocks]);
+  }, [blocks, currentTemplate]);
 
   // 当前选中的自定义块（用于配置抽屉）
   const selectedBlock = useMemo(

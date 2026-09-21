@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { templates, templateCategories } from './Templates';
-import { LayoutTemplate, CheckCircle2, Pencil, Trash2, History, RotateCcw } from 'lucide-react';
+import { LayoutTemplate, Pencil, Trash2, History, RotateCcw } from 'lucide-react';
 import { toast } from 'sonner';
 import templateStore from '@/lib/templateStore';
 import ConfirmActionDialog from '@/components/ConfirmActionDialog';
@@ -27,7 +27,6 @@ const VERSION_PAGE_SIZE = 10;
  */
 const TemplatePickerDialog = ({ open, onClose, onApply }) => {
   const [activeCategory, setActiveCategory] = useState('all');
-  const [hoveredId, setHoveredId] = useState(null);
   const [userTemplates, setUserTemplates] = useState([]);
   const [editingTpl, setEditingTpl] = useState(null);
   const [editName, setEditName] = useState('');
@@ -64,11 +63,17 @@ const TemplatePickerDialog = ({ open, onClose, onApply }) => {
     }
   }, [open, loadUserTemplates]);
 
-  const filtered = activeCategory === 'all'
+  const filtered = (activeCategory === 'all'
     ? [...templates, ...userTemplates]
     : activeCategory === 'my-templates'
       ? userTemplates
-      : templates.filter((t) => t.category === activeCategory);
+      : templates.filter((t) => t.category === activeCategory))
+    .slice()
+    .sort((a, b) => {
+      const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return timeB - timeA;
+    });
 
   const handleApply = (tpl) => {
     let counter = Date.now();
@@ -191,7 +196,7 @@ const TemplatePickerDialog = ({ open, onClose, onApply }) => {
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-2xl w-full p-0 overflow-hidden rounded-lg">
+      <DialogContent className="w-[calc(100vw-2rem)] max-w-5xl p-0 overflow-hidden rounded-lg">
         {/* 头部 */}
         <DialogHeader className="px-6 pt-6 pb-4 border-b">
           <DialogTitle className="flex items-center gap-2 text-base font-medium">
@@ -262,210 +267,118 @@ const TemplatePickerDialog = ({ open, onClose, onApply }) => {
             </div>
           )}
 
-          {historyTpl && (
-            <div className="rounded-lg border bg-muted p-4 mb-3">
-              <div className="flex items-center justify-between gap-3 mb-3">
-                <div className="min-w-0">
-                  <div className="text-sm font-medium truncate">版本历史：{historyTpl.name}</div>
-                  <div className="text-xs text-muted-foreground">
-                    共 {versionPagination.total} 个版本，恢复历史版本会创建新的当前版本
-                  </div>
-                </div>
-                <Button size="sm" variant="ghost" onClick={() => setHistoryTpl(null)}>
-                  关闭
-                </Button>
-              </div>
-              {loadingVersions ? (
-                <div className="py-6 text-sm text-muted-foreground text-center">加载中...</div>
-              ) : versions.length === 0 ? (
-                <div className="py-6 text-sm text-muted-foreground text-center">暂无版本记录</div>
-              ) : (
-                <>
-                  <div className="space-y-2 max-h-56 overflow-y-auto">
-                    {versions.map((item) => (
-                      <div
-                        key={item.id}
-                        className="flex items-center justify-between gap-3 rounded-md bg-background px-3 py-2"
-                      >
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium">v{item.version}</span>
-                            {item.version === historyTpl.version && (
-                              <Badge variant="secondary" className="text-xs border-0">当前</Badge>
-                            )}
-                            <span className="text-xs text-muted-foreground">
-                              {new Date(item.createdAt).toLocaleString()}
-                            </span>
-                          </div>
-                          {item.note && (
-                            <div className="text-xs text-muted-foreground truncate mt-0.5">
-                              {item.note}
-                            </div>
-                          )}
-                        </div>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => restoreVersion(item.version)}
-                          disabled={item.version === historyTpl.version}
-                          className="shrink-0"
-                        >
-                          <RotateCcw size={14} className="mr-1" />
-                          恢复
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                  {versionPagination.totalPages > 1 && (
-                    <div className="flex items-center justify-between pt-3">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => changeVersionPage(versionPagination.page - 1)}
-                        disabled={loadingVersions || versionPagination.page <= 1}
-                      >
-                        上一页
-                      </Button>
-                      <span className="text-xs text-muted-foreground">
-                        {versionPagination.page} / {versionPagination.totalPages}
-                      </span>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => changeVersionPage(versionPagination.page + 1)}
-                        disabled={loadingVersions || versionPagination.page >= versionPagination.totalPages}
-                      >
-                        下一页
-                      </Button>
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-          )}
-
           {filtered.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground text-sm">
               <p>还没有保存过模板</p>
               <p className="mt-1">在编辑器中点击「另存新模板」来保存当前内容</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 gap-3 mt-2">
-              {filtered.map((tpl) => {
-                const isHovered = hoveredId === tpl.id;
-                const isUser = isUserTemplate(tpl);
-                return (
-                  <div
-                    key={tpl.id}
-                    onMouseEnter={() => setHoveredId(tpl.id)}
-                    onMouseLeave={() => setHoveredId(null)}
-                    className={`relative rounded-lg border p-4 cursor-pointer transition-colors ${
-                      isHovered
-                        ? 'border-ring bg-muted'
-                        : 'bg-card hover:bg-muted'
-                    }`}
-                  >
-                    <div className="flex items-start gap-4">
-                      <div className="w-14 h-14 rounded-lg bg-muted flex items-center justify-center text-3xl flex-shrink-0">
-                        {tpl.cover}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <h3 className="font-medium text-base">{tpl.name}</h3>
-                          {tpl.category && (
-                            <Badge
-                              variant="secondary"
-                              className="text-xs bg-muted text-muted-foreground border-0"
-                            >
-                              {tpl.category}
-                            </Badge>
-                          )}
-                          <span className="text-xs text-muted-foreground">
-                            共 {tpl.blocks.length} 个块
-                          </span>
-                          {tpl.updatedAt && (
-                            <span className="text-xs text-muted-foreground">
-                              {new Date(tpl.updatedAt).toLocaleDateString()}
-                            </span>
-                          )}
-                          {tpl.version && (
-                            <span className="text-xs text-muted-foreground">
-                              v{tpl.version}
-                            </span>
-                          )}
-                        </div>
-                        {tpl.description && (
-                          <p className="text-sm text-muted-foreground mt-1 leading-relaxed line-clamp-2">
-                            {tpl.description}
-                          </p>
-                        )}
-                        <div className="flex flex-wrap gap-1 mt-2">
-                          {getBlockSummary(tpl.blocks).map((item, i) => (
-                            <span
-                              key={i}
-                              className="text-xs px-2 py-0.5 rounded bg-background text-muted-foreground"
-                            >
-                              {item}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                      <div className="flex flex-col gap-1 flex-shrink-0">
-                        <Button
-                          size="sm"
-                          onClick={() => handleApply(tpl)}
-                          className={`transition-all ${
-                            isHovered
-                              ? 'bg-primary hover:bg-primary/80 text-primary-foreground'
-                              : 'bg-muted text-muted-foreground hover:bg-primary hover:text-primary-foreground'
-                          }`}
-                        >
-                          <CheckCircle2 size={14} className="mr-1" />
-                          使用
-                        </Button>
-                        {isUser && (
-                          <div className="flex gap-1">
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => startEdit(tpl)}
-                              className="h-7 px-2 text-xs"
-                              title="编辑"
-                            >
-                              <Pencil size={14} className="mr-1" />
-                              编辑
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => openVersions(tpl)}
-                              className="h-7 px-2 text-xs"
-                              title="版本历史"
-                            >
-                              <History size={14} className="mr-1" />
-                              版本
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => handleDelete(tpl)}
-                              className="h-7 px-2 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
-                              title="删除"
-                            >
-                              <Trash2 size={14} className="mr-1" />
-                              删除
-                            </Button>
+            <div className="mt-2 overflow-x-auto rounded-lg border">
+              <table className="w-full min-w-[820px] table-fixed text-left">
+                <thead className="bg-muted/60 text-xs text-muted-foreground">
+                  <tr>
+                    <th className="w-[25%] px-4 py-2.5 font-medium">模板</th>
+                    <th className="w-[27%] px-4 py-2.5 font-medium">描述</th>
+                    <th className="w-[18%] px-4 py-2.5 font-medium">内容</th>
+                    <th className="w-[13%] px-4 py-2.5 font-medium">创建时间</th>
+                    <th className="w-[17%] px-4 py-2.5 text-right font-medium">操作</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {filtered.map((tpl) => {
+                    const isUser = isUserTemplate(tpl);
+                    return (
+                      <tr key={tpl.id} className="transition-colors hover:bg-muted/50">
+                        <td className="px-4 py-3 align-top">
+                          <div className="flex min-w-0 items-center gap-3">
+                            <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-muted text-base">{tpl.cover}</span>
+                            <div className="min-w-0">
+                              <div className="truncate text-sm font-medium">{tpl.name}</div>
+                              <div className="mt-1 flex items-center gap-1.5">
+                                {tpl.category && <Badge variant="secondary" className="border-0 text-xs font-normal">{tpl.category}</Badge>}
+                                <span className="text-xs text-muted-foreground">{tpl.blocks.length} 个块</span>
+                              </div>
+                            </div>
                           </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
+                        </td>
+                        <td className="px-4 py-3 align-top text-sm text-muted-foreground">
+                          <p className="line-clamp-2 leading-relaxed">{tpl.description || '暂无描述'}</p>
+                        </td>
+                        <td className="px-4 py-3 align-top">
+                          <div className="flex flex-wrap gap-1">
+                            {getBlockSummary(tpl.blocks).slice(0, 3).map((item) => <span key={item} className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">{item}</span>)}
+                            {getBlockSummary(tpl.blocks).length > 3 && <span className="px-1 py-0.5 text-xs text-muted-foreground">+{getBlockSummary(tpl.blocks).length - 3}</span>}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 align-top text-xs text-muted-foreground">
+                          {tpl.createdAt ? new Date(tpl.createdAt).toLocaleDateString() : '内置模板'}
+                        </td>
+                        <td className="px-4 py-3 align-top">
+                          <div className="flex flex-wrap items-center justify-end gap-1">
+                            {tpl.version && <span className="mr-1 text-xs text-muted-foreground">v{tpl.version}</span>}
+                            <Button size="sm" className="h-7 px-2 text-xs" onClick={() => handleApply(tpl)}>使用</Button>
+                            {isUser && (
+                              <>
+                                <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => startEdit(tpl)} aria-label={`编辑${tpl.name}`} title="编辑"><Pencil size={14} /></Button>
+                                <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => openVersions(tpl)} aria-label={`查看${tpl.name}版本历史`} title="版本历史"><History size={14} /></Button>
+                                <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => handleDelete(tpl)} aria-label={`删除${tpl.name}`} title="删除"><Trash2 size={14} /></Button>
+                              </>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           )}
         </div>
       </DialogContent>
+      <Dialog open={Boolean(historyTpl)} onOpenChange={(nextOpen) => !nextOpen && setHistoryTpl(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-base font-medium">版本历史：{historyTpl?.name}</DialogTitle>
+            <DialogDescription>
+              共 {versionPagination.total} 个版本，恢复历史版本会创建一个新的当前版本。
+            </DialogDescription>
+          </DialogHeader>
+          {loadingVersions ? (
+            <div className="py-12 text-center text-sm text-muted-foreground">加载中...</div>
+          ) : versions.length === 0 ? (
+            <div className="py-12 text-center text-sm text-muted-foreground">暂无版本记录</div>
+          ) : (
+            <>
+              <div className="max-h-[50vh] overflow-y-auto rounded-lg border">
+                <div className="divide-y divide-border">
+                  {versions.map((item) => (
+                    <div key={item.id} className="flex items-center justify-between gap-4 px-4 py-3 transition-colors hover:bg-muted/50">
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-sm font-medium">v{item.version}</span>
+                          {item.version === historyTpl?.version && <Badge variant="secondary" className="border-0 text-xs">当前</Badge>}
+                          <span className="text-xs text-muted-foreground">{new Date(item.createdAt).toLocaleString()}</span>
+                        </div>
+                        {item.note && <p className="mt-1 truncate text-xs text-muted-foreground">{item.note}</p>}
+                      </div>
+                      <Button size="sm" variant="outline" onClick={() => restoreVersion(item.version)} disabled={item.version === historyTpl?.version} className="shrink-0">
+                        <RotateCcw size={14} className="mr-1" />恢复
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              {versionPagination.totalPages > 1 && (
+                <div className="flex items-center justify-between">
+                  <Button size="sm" variant="outline" onClick={() => changeVersionPage(versionPagination.page - 1)} disabled={loadingVersions || versionPagination.page <= 1}>上一页</Button>
+                  <span className="text-xs text-muted-foreground">{versionPagination.page} / {versionPagination.totalPages}</span>
+                  <Button size="sm" variant="outline" onClick={() => changeVersionPage(versionPagination.page + 1)} disabled={loadingVersions || versionPagination.page >= versionPagination.totalPages}>下一页</Button>
+                </div>
+              )}
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
       <ConfirmActionDialog
         open={Boolean(confirmAction)}
         onOpenChange={(nextOpen) => {

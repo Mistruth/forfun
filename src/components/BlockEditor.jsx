@@ -1,255 +1,136 @@
-import React, { useRef, useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { ChevronDown, ChevronUp, Copy, GripVertical, LayoutTemplate, Plus, Trash2 } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { Trash2, ChevronUp, ChevronDown, Settings2, GripVertical } from 'lucide-react';
 import { customComponents } from './CustomComponentDefinitions';
 import { useResolvedBlocks } from '@/lib/useResolvedBlocks';
 
-/**
- * 块编辑器
- * blocks: Array<{ id, type: 'markdown'|'custom', content?: string, componentId?: string, props?: {} }>
- */
-const BlockEditor = ({ blocks, onChange, onSelectBlock, selectedBlockId }) => {
+const clone = value => JSON.parse(JSON.stringify(value));
+
+const BlockEditor = ({ blocks, onChange, onSelectBlock, selectedBlockId, scrollToBlockId, onRequestInsert, onOpenTemplates }) => {
+  const editorRef = useRef(null);
   const dragSrcIdx = useRef(null);
   const [dragOverIdx, setDragOverIdx] = useState(null);
   const resolvedBlocks = useResolvedBlocks(blocks);
 
-  const updateBlock = useCallback((id, patch) => {
-    onChange(blocks.map(b => b.id === id ? { ...b, ...patch } : b));
+  useEffect(() => {
+    if (!scrollToBlockId) return;
+    const frame = window.requestAnimationFrame(() => {
+      const target = [...(editorRef.current?.querySelectorAll('[data-block-id]') || [])]
+        .find(element => element.dataset.blockId === scrollToBlockId);
+      target?.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [scrollToBlockId]);
+
+  const updateBlock = useCallback((id, patch) => onChange(blocks.map(block => block.id === id ? { ...block, ...patch } : block)), [blocks, onChange]);
+  const deleteBlock = useCallback(id => onChange(blocks.filter(block => block.id !== id)), [blocks, onChange]);
+  const duplicateBlock = useCallback((block, index) => {
+    const next = [...blocks];
+    next.splice(index + 1, 0, { ...clone(block), id: `block_${Date.now()}_copy` });
+    onChange(next);
+  }, [blocks, onChange]);
+  const moveBlock = useCallback((id, direction) => {
+    const index = blocks.findIndex(block => block.id === id);
+    const target = direction === 'up' ? index - 1 : index + 1;
+    if (index < 0 || target < 0 || target >= blocks.length) return;
+    const next = [...blocks];
+    [next[index], next[target]] = [next[target], next[index]];
+    onChange(next);
   }, [blocks, onChange]);
 
-  const deleteBlock = useCallback((id) => {
-    onChange(blocks.filter(b => b.id !== id));
-  }, [blocks, onChange]);
-
-  const moveBlock = useCallback((id, dir) => {
-    const idx = blocks.findIndex(b => b.id === id);
-    if (dir === 'up' && idx === 0) return;
-    if (dir === 'down' && idx === blocks.length - 1) return;
-    const newBlocks = [...blocks];
-    const swapIdx = dir === 'up' ? idx - 1 : idx + 1;
-    [newBlocks[idx], newBlocks[swapIdx]] = [newBlocks[swapIdx], newBlocks[idx]];
-    onChange(newBlocks);
-  }, [blocks, onChange]);
-
-  // ── 拖拽处理 ──────────────────────────────────────────────
-  const handleDragStart = useCallback((e, idx) => {
-    dragSrcIdx.current = idx;
-    e.dataTransfer.effectAllowed = 'move';
-    // 延迟添加拖拽样式，避免截图时出现问题
-    setTimeout(() => {
-      e.target.closest('[data-block-wrapper]')?.classList.add('opacity-40');
-    }, 0);
-  }, []);
-
-  const handleDragEnd = useCallback((e) => {
-    e.target.closest('[data-block-wrapper]')?.classList.remove('opacity-40');
+  const handleDrop = useCallback((event, toIndex) => {
+    event.preventDefault();
+    const fromIndex = dragSrcIdx.current;
+    if (fromIndex === null || fromIndex === toIndex) return;
+    const next = [...blocks];
+    const [moved] = next.splice(fromIndex, 1);
+    next.splice(toIndex, 0, moved);
+    onChange(next);
     dragSrcIdx.current = null;
     setDragOverIdx(null);
-  }, []);
-
-  const handleDragOver = useCallback((e, idx) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    if (dragSrcIdx.current !== null && dragSrcIdx.current !== idx) {
-      setDragOverIdx(idx);
-    }
-  }, []);
-
-  const handleDragLeave = useCallback(() => {
-    setDragOverIdx(null);
-  }, []);
-
-  const handleDrop = useCallback((e, toIdx) => {
-    e.preventDefault();
-    const fromIdx = dragSrcIdx.current;
-    if (fromIdx === null || fromIdx === toIdx) return;
-    const newBlocks = [...blocks];
-    const [moved] = newBlocks.splice(fromIdx, 1);
-    newBlocks.splice(toIdx, 0, moved);
-    onChange(newBlocks);
-    setDragOverIdx(null);
-    dragSrcIdx.current = null;
   }, [blocks, onChange]);
+
+  if (blocks.length === 0) {
+    return (
+      <div className="flex min-h-full flex-col items-center justify-center gap-4 px-6 py-16 text-center">
+        <span className="flex size-12 items-center justify-center rounded-lg bg-muted text-muted-foreground"><LayoutTemplate className="size-5" /></span>
+        <div><p className="text-sm font-medium">从一个内容块开始</p><p className="mt-1 text-xs text-muted-foreground">选择模板，或插入正文与组件开始创作。</p></div>
+        <div className="flex flex-wrap justify-center gap-2">
+          <Button size="sm" onClick={() => onRequestInsert?.(0)}><Plus className="mr-1 size-4" />插入组件</Button>
+          {onOpenTemplates && <Button size="sm" variant="outline" onClick={onOpenTemplates}>选择模板</Button>}
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="flex flex-col gap-3 p-4 pl-8">
-      {blocks.map((block, idx) => {
-        const displayBlock = resolvedBlocks[idx] || block;
-        const isSelected = selectedBlockId === block.id;
-        const isDragOver = dragOverIdx === idx;
+    <div ref={editorRef} className="flex flex-col px-3 py-6 sm:px-5">
+      {blocks.map((block, index) => {
+        const displayBlock = resolvedBlocks[index] || block;
+        const selected = selectedBlockId === block.id;
+        const definition = block.type === 'custom' ? customComponents.find(item => item.id === block.componentId) : null;
+        if (block.type === 'custom' && !definition) return null;
 
-        if (block.type === 'markdown') {
-          return (
+        return (
+          <React.Fragment key={block.id}>
             <div
-              key={block.id}
               data-block-wrapper
+              data-block-id={block.id}
               draggable
-              onDragStart={e => handleDragStart(e, idx)}
-              onDragEnd={handleDragEnd}
-              onDragOver={e => handleDragOver(e, idx)}
-              onDragLeave={handleDragLeave}
-              onDrop={e => handleDrop(e, idx)}
-              className={`group relative rounded-lg border transition-colors ${
-                isSelected ? 'border-ring bg-muted/40' : 'border-transparent hover:border-border'
-              } ${isDragOver ? 'border-ring border-dashed bg-muted' : ''}`}
+              onDragStart={event => { dragSrcIdx.current = index; event.dataTransfer.effectAllowed = 'move'; }}
+              onDragEnd={() => { dragSrcIdx.current = null; setDragOverIdx(null); }}
+              onDragOver={event => { event.preventDefault(); if (dragSrcIdx.current !== index) setDragOverIdx(index); }}
+              onDragLeave={() => setDragOverIdx(null)}
+              onDrop={event => handleDrop(event, index)}
+              onClick={() => block.type === 'custom' && onSelectBlock(block.id)}
+              data-active={selected || undefined}
+              className={`group relative my-1 rounded-lg border border-transparent transition-colors hover:border-border data-[active]:border-ring data-[active]:hover:border-ring ${dragOverIdx === index ? 'border-dashed border-ring bg-muted' : ''}`}
             >
-              {/* 左侧拖拽把手 */}
-              <DragHandle />
-
-              {/* 操作栏 */}
               <BlockToolbar
-                isSelected={isSelected}
-                onDelete={() => deleteBlock(block.id)}
-                onMoveUp={() => moveBlock(block.id, 'up')}
-                onMoveDown={() => moveBlock(block.id, 'down')}
-                canMoveUp={idx > 0}
-                canMoveDown={idx < blocks.length - 1}
-                showConfig={false}
+                name={definition?.name || 'Markdown 文本'}
+                selected={selected}
+                canMoveUp={index > 0}
+                canMoveDown={index < blocks.length - 1}
+                onMoveUp={event => { event.stopPropagation(); moveBlock(block.id, 'up'); }}
+                onMoveDown={event => { event.stopPropagation(); moveBlock(block.id, 'down'); }}
+                onDuplicate={event => { event.stopPropagation(); duplicateBlock(block, index); }}
+                onDelete={event => { event.stopPropagation(); deleteBlock(block.id); }}
               />
-              <Textarea
-                value={block.content}
-                onChange={e => updateBlock(block.id, { content: e.target.value })}
-                onFocus={() => onSelectBlock(block.id)}
-                placeholder="输入 Markdown 文本..."
-                className="w-full border-0 rounded-lg font-mono text-sm resize-none focus-visible:ring-0 p-3 min-h-[80px] bg-transparent"
-                style={{ minHeight: Math.max(80, (block.content?.split('\n').length || 1) * 22 + 24) + 'px' }}
-              />
-            </div>
-          );
-        }
-
-        if (block.type === 'custom') {
-          const compDef = customComponents.find(c => c.id === block.componentId);
-          if (!compDef) return null;
-          const html = compDef.renderFn(displayBlock.props || compDef.defaultProps);
-
-          return (
-            <div
-              key={block.id}
-              data-block-wrapper
-              draggable
-              onDragStart={e => handleDragStart(e, idx)}
-              onDragEnd={handleDragEnd}
-              onDragOver={e => handleDragOver(e, idx)}
-              onDragLeave={handleDragLeave}
-              onDrop={e => handleDrop(e, idx)}
-              className={`group relative rounded-lg border transition-colors cursor-pointer ${
-                isSelected
-                  ? 'border-ring bg-muted/40'
-                  : 'border-transparent hover:border-border'
-              } ${isDragOver ? 'border-ring border-dashed bg-muted' : ''}`}
-              onClick={() => onSelectBlock(block.id)}
-            >
-              {/* 左侧拖拽把手 */}
-              <DragHandle />
-
-              {/* 组件类型标签 */}
-              <div className={`absolute -top-3 left-3 z-10 transition-opacity ${isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
-                <span className="bg-primary text-primary-foreground text-xs px-2 py-0.5 rounded-md font-medium">
-                  {compDef.name}
-                </span>
-              </div>
-
-              {/* 操作栏 */}
-              <BlockToolbar
-                isSelected={isSelected}
-                onDelete={(e) => { e.stopPropagation(); deleteBlock(block.id); }}
-                onMoveUp={(e) => { e.stopPropagation(); moveBlock(block.id, 'up'); }}
-                onMoveDown={(e) => { e.stopPropagation(); moveBlock(block.id, 'down'); }}
-                onConfig={(e) => { e.stopPropagation(); onSelectBlock(block.id); }}
-                canMoveUp={idx > 0}
-                canMoveDown={idx < blocks.length - 1}
-                showConfig={true}
-              />
-
-              {/* 渲染组件 HTML */}
-              <div
-                className="pointer-events-none select-none"
-                dangerouslySetInnerHTML={{ __html: html }}
-              />
-
-              {/* 选中时底部提示 */}
-              {isSelected && (
-                <div className="absolute bottom-1 right-2 text-xs text-muted-foreground flex items-center gap-1">
-                  <Settings2 size={11} />
-                  <span>右侧配置</span>
-                </div>
+              {block.type === 'markdown' ? (
+                <Textarea
+                  value={block.content || ''}
+                  onChange={event => updateBlock(block.id, { content: event.target.value })}
+                  onFocus={() => onSelectBlock(block.id)}
+                  placeholder="输入 Markdown 文本..."
+                  className="min-h-[88px] w-full resize-none rounded-lg border-0 bg-transparent p-3 font-mono text-sm focus-visible:ring-0"
+                  style={{ minHeight: `${Math.max(88, (block.content?.split('\n').length || 1) * 22 + 24)}px` }}
+                />
+              ) : (
+                <div className="pointer-events-none select-none" dangerouslySetInnerHTML={{ __html: definition.renderFn(displayBlock.props || definition.defaultProps) }} />
               )}
             </div>
-          );
-        }
-
-        return null;
+            <button type="button" onClick={() => onRequestInsert?.(index + 1)} className="group/insert mx-auto flex h-5 items-center text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50" aria-label={`在第 ${index + 1} 个内容块后插入组件`}>
+              <span className="flex size-5 items-center justify-center rounded-full border bg-card opacity-0 transition-opacity hover:bg-muted group-hover/insert:opacity-100 group-focus-visible/insert:opacity-100"><Plus className="size-3" /></span>
+            </button>
+          </React.Fragment>
+        );
       })}
-
-      {blocks.length === 0 && (
-        <div className="text-center py-16 text-muted-foreground">
-          <p className="text-sm">编辑器为空，从左侧组件面板插入组件，或直接输入文字</p>
-        </div>
-      )}
     </div>
   );
 };
 
-// ── 左侧拖拽把手 ──────────────────────────────────────────────
-const DragHandle = () => (
-  <div
-    className="absolute -left-6 top-1/2 -translate-y-1/2 z-20 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing"
-    onMouseDown={e => e.stopPropagation()}
-    title="拖拽排序"
-  >
-    <div className="w-5 h-8 flex items-center justify-center rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
-      <GripVertical size={15} />
-    </div>
-  </div>
+const ToolbarButton = ({ label, children, ...props }) => (
+  <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" aria-label={label} title={label} {...props}>{children}</Button>
 );
 
-// ── 右侧操作栏 ──────────────────────────────────────────────
-const BlockToolbar = ({ isSelected, onDelete, onMoveUp, onMoveDown, onConfig, canMoveUp, canMoveDown, showConfig }) => (
-  <div className={`absolute -right-2 top-1/2 -translate-y-1/2 z-20 flex flex-col gap-1 transition-opacity ${
-    isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
-  }`}>
-    {showConfig && (
-      <Button
-        variant="default"
-        size="sm"
-        className="h-7 w-7 p-0 rounded-md bg-primary text-primary-foreground hover:bg-primary/80"
-        onClick={onConfig}
-        title="配置"
-      >
-        <Settings2 size={13} />
-      </Button>
-    )}
-    <Button
-      variant="outline"
-      size="sm"
-      className="h-7 w-7 p-0 rounded-md bg-background"
-      onClick={onMoveUp}
-      disabled={!canMoveUp}
-      title="上移"
-    >
-      <ChevronUp size={13} />
-    </Button>
-    <Button
-      variant="outline"
-      size="sm"
-      className="h-7 w-7 p-0 rounded-md bg-background"
-      onClick={onMoveDown}
-      disabled={!canMoveDown}
-      title="下移"
-    >
-      <ChevronDown size={13} />
-    </Button>
-    <Button
-      variant="outline"
-      size="sm"
-      className="h-7 w-7 p-0 rounded-md bg-background hover:bg-destructive/10 hover:text-destructive hover:border-destructive/20"
-      onClick={onDelete}
-      title="删除"
-    >
-      <Trash2 size={13} />
-    </Button>
+const BlockToolbar = ({ name, selected, canMoveUp, canMoveDown, onMoveUp, onMoveDown, onDuplicate, onDelete }) => (
+  <div className={`absolute -top-8 left-0 z-20 items-center gap-0.5 rounded-md border bg-card p-0.5 ${selected ? 'flex' : 'hidden group-hover:flex group-focus-within:flex'}`}>
+    <span className="flex items-center gap-1 px-1.5 text-xs font-medium"><GripVertical className="size-3 text-muted-foreground" />{name}</span>
+    <ToolbarButton label="上移内容块" onClick={onMoveUp} disabled={!canMoveUp}><ChevronUp className="size-3.5" /></ToolbarButton>
+    <ToolbarButton label="下移内容块" onClick={onMoveDown} disabled={!canMoveDown}><ChevronDown className="size-3.5" /></ToolbarButton>
+    <ToolbarButton label="复制内容块" onClick={onDuplicate}><Copy className="size-3.5" /></ToolbarButton>
+    <ToolbarButton label="删除内容块" onClick={onDelete}><Trash2 className="size-3.5 text-destructive" /></ToolbarButton>
   </div>
 );
 

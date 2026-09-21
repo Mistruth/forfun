@@ -8,10 +8,57 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { X, Plus, Trash2, Settings2, Bold, Italic, Underline, Upload, ImageIcon, Link as LinkIcon, ChevronDown, Highlighter, RemoveFormatting } from 'lucide-react';
+import { X, Plus, Trash2, Settings2, Bold, Italic, Underline, Upload, ImageIcon, Link as LinkIcon, ChevronDown, Highlighter, RemoveFormatting, RotateCcw } from 'lucide-react';
 import { customComponents, FONT_FAMILY_OPTIONS } from './CustomComponentDefinitions';
 import { getImageObjectUrl, isImageRef, saveImageFile } from '@/lib/imageStore';
 import { toast } from 'sonner';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Switch } from '@/components/ui/switch';
+
+const GROUPS = [
+  { id: 'content', label: '内容' },
+  { id: 'media', label: '图片与媒体' },
+  { id: 'style', label: '样式与排版' },
+  { id: 'color', label: '颜色' },
+  { id: 'layout', label: '间距与布局' },
+  { id: 'advanced', label: '高级设置' },
+];
+
+const getFieldGroup = (field) => {
+  const key = `${field.key} ${field.label}`.toLowerCase();
+  if (field.type === 'imageUpload' || /图片|image|媒体|url/.test(key)) return 'media';
+  if (field.type === 'color' || field.type === 'colorSelect' || /颜色|color|遮罩/.test(key)) return 'color';
+  if (/间距|圆角|宽度|高度|布局|对齐|margin|padding|gap|radius|width|height|layout|align/.test(key)) return 'layout';
+  if (['fontSelect', 'stepper'].includes(field.type) || /字体|字号|行距|风格|style|font/.test(key)) return 'style';
+  if (['text', 'textarea', 'richText', 'listEditor', 'statsEditor'].includes(field.type) || /标题|正文|内容|描述|说明|标签|文字|title|content|text|caption|items/.test(key)) return 'content';
+  return 'advanced';
+};
+
+const ConfigFields = ({ compDef, localProps, onChange }) => {
+  const visibleFields = compDef.configFields.filter(field => !field.showWhen || localProps[field.showWhen.key] === field.showWhen.value);
+  const grouped = GROUPS.map(group => ({ ...group, fields: visibleFields.filter(field => getFieldGroup(field) === group.id) })).filter(group => group.fields.length > 0);
+
+  return (
+    <Accordion type="multiple" defaultValue={grouped.slice(0, 2).map(group => group.id)} className="px-4">
+      {grouped.map(group => (
+        <AccordionItem key={group.id} value={group.id}>
+          <AccordionTrigger className="py-3 text-sm font-medium hover:no-underline">{group.label}<span className="ml-auto mr-2 text-xs font-normal text-muted-foreground">{group.fields.length}</span></AccordionTrigger>
+          <AccordionContent className="space-y-4">
+            {group.fields.map(field => (
+              <FieldRenderer
+                key={field.key}
+                field={field}
+                value={localProps[field.key]}
+                defaultValue={compDef.defaultProps[field.key]}
+                onChange={value => onChange(field.key, value)}
+              />
+            ))}
+          </AccordionContent>
+        </AccordionItem>
+      ))}
+    </Accordion>
+  );
+};
 
 /**
  * 右侧抽屉配置面板
@@ -28,12 +75,19 @@ const ComponentConfigDrawer = ({ block, onUpdate, onClose }) => {
       const props = { ...compDef.defaultProps, ...(block.props || {}) };
       setLocalProps(props);
     }
-  }, [block?.id]);
+  }, [block?.id, block?.props]);
 
   const handleChange = (key, value) => {
     const newProps = { ...localProps, [key]: value };
     setLocalProps(newProps);
     onUpdate(block.id, newProps);
+  };
+
+  const handleReset = () => {
+    const next = { ...compDef.defaultProps };
+    setLocalProps(next);
+    onUpdate(block.id, next);
+    toast.success('已恢复组件默认设置');
   };
 
   if (!block || !compDef) return null;
@@ -54,29 +108,14 @@ const ComponentConfigDrawer = ({ block, onUpdate, onClose }) => {
               <p className="text-xs text-muted-foreground">实时配置，即时生效</p>
             </div>
           </div>
-          <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={onClose}>
-            <X size={16} />
-          </Button>
+          <div className="flex items-center gap-1">
+            <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={handleReset} aria-label="恢复组件默认设置" title="恢复默认设置"><RotateCcw size={14} /></Button>
+            <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={onClose} aria-label="关闭配置面板"><X size={16} /></Button>
+          </div>
         </div>
 
         {/* 配置表单 */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          {compDef.configFields.map(field => {
-            // showWhen 条件控制显隐
-            if (field.showWhen) {
-              const condVal = localProps[field.showWhen.key];
-              if (condVal !== field.showWhen.value) return null;
-            }
-            return (
-              <FieldRenderer
-                key={field.key}
-                field={field}
-                value={localProps[field.key]}
-                onChange={(val) => handleChange(field.key, val)}
-              />
-            );
-          })}
-        </div>
+        <div className="flex-1 overflow-y-auto"><ConfigFields compDef={compDef} localProps={localProps} onChange={handleChange} /></div>
       </div>
     </>
   );
@@ -84,10 +123,17 @@ const ComponentConfigDrawer = ({ block, onUpdate, onClose }) => {
 
 // ─── 字段渲染器 ────────────────────────────────────────────────
 
-const FieldRenderer = ({ field, value, onChange }) => {
+const FieldRenderer = ({ field, value, defaultValue, onChange }) => {
   return (
     <div className="space-y-1.5">
-      <Label className="text-xs font-medium text-foreground">{field.label}</Label>
+      <div className="flex items-center justify-between gap-2">
+        <Label className="text-xs font-medium text-foreground">{field.label}</Label>
+        {value !== defaultValue && (
+          <button type="button" onClick={() => onChange(defaultValue)} className="rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50" aria-label={`恢复${field.label}默认值`} title="恢复默认值">
+            <RotateCcw className="size-3" />
+          </button>
+        )}
+      </div>
 
       {field.type === 'text' && (
         <Input
@@ -154,20 +200,7 @@ const FieldRenderer = ({ field, value, onChange }) => {
         />
       )}
 
-      {field.type === 'toggle' && (
-        <button
-          onClick={() => onChange(!value)}
-          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-            value ? 'bg-primary' : 'bg-muted'
-          }`}
-        >
-          <span
-            className={`inline-block h-4 w-4 transform rounded-full bg-background border transition-transform ${
-              value ? 'translate-x-6' : 'translate-x-1'
-            }`}
-          />
-        </button>
-      )}
+      {field.type === 'toggle' && <Switch checked={Boolean(value)} onCheckedChange={onChange} aria-label={field.label} />}
 
       {field.type === 'select' && (
         <SelectField value={value} options={field.options} onChange={onChange} />
@@ -713,12 +746,19 @@ export const ComponentConfigPanel = ({ block, onUpdate, onClose }) => {
     if (block && compDef) {
       setLocalProps({ ...compDef.defaultProps, ...(block.props || {}) });
     }
-  }, [block?.id]);
+  }, [block?.id, block?.props]);
 
   const handleChange = (key, value) => {
     const newProps = { ...localProps, [key]: value };
     setLocalProps(newProps);
     onUpdate(block.id, newProps);
+  };
+
+  const handleReset = () => {
+    const next = { ...compDef.defaultProps };
+    setLocalProps(next);
+    onUpdate(block.id, next);
+    toast.success('已恢复组件默认设置');
   };
 
   if (!block || !compDef) return null;
@@ -734,30 +774,14 @@ export const ComponentConfigPanel = ({ block, onUpdate, onClose }) => {
             <p className="text-xs text-muted-foreground">实时配置，即时生效</p>
           </div>
         </div>
-        {onClose && (
-          <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={onClose}>
-            <X size={16} />
-          </Button>
-        )}
+        <div className="flex items-center gap-1">
+          <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={handleReset} aria-label="恢复组件默认设置" title="恢复默认设置"><RotateCcw size={14} /></Button>
+          {onClose && <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={onClose} aria-label="关闭配置面板"><X size={16} /></Button>}
+        </div>
       </div>
 
       {/* 配置表单 */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {compDef.configFields.map(field => {
-          if (field.showWhen) {
-            const condVal = localProps[field.showWhen.key];
-            if (condVal !== field.showWhen.value) return null;
-          }
-          return (
-            <FieldRenderer
-              key={field.key}
-              field={field}
-              value={localProps[field.key]}
-              onChange={(val) => handleChange(field.key, val)}
-            />
-          );
-        })}
-      </div>
+      <div className="flex-1 overflow-y-auto"><ConfigFields compDef={compDef} localProps={localProps} onChange={handleChange} /></div>
     </div>
   );
 };

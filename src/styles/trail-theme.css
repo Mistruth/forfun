@@ -1,0 +1,60 @@
+.trail-studio {
+  --trail-pine: 153 32% 15%;
+  --trail-moss: 137 24% 31%;
+  --trail-sand: 42 38% 91%;
+  --trail-orange: 25 88% 56%;
+  --trail-sky: 195 42% 68%;
+  background: hsl(var(--trail-sand));
+}
+
+.trail-map {
+  background-color: hsl(42 38% 91%);
+  background-image:
+    repeating-radial-gradient(ellipse at 15% 20%, transparent 0 24px, hsl(var(--trail-moss) / 0.1) 25px 26px, transparent 27px 44px),
+    repeating-radial-gradient(ellipse at 85% 75%, transparent 0 34px, hsl(var(--trail-moss) / 0.08) 35px 36px, transparent 37px 62px);
+}
+
+.trail-dark {
+  color: hsl(42 38% 94%);
+  background: linear-gradient(155deg, hsl(var(--trail-pine)), hsl(151 30% 10%));
+  border-color: hsl(42 38% 94% / 0.1);
+}
+
+.trail-paper {
+  background: hsl(44 45% 97%);
+  box-shadow: 0 28px 70px hsl(153 32% 10% / 0.24);
+}
+
+.trail-orange {
+  background: hsl(var(--trail-orange));
+  color: hsl(var(--trail-pine));
+}
+
+.trail-stitch { border: 1px dashed hsl(var(--trail-moss) / 0.45); }
+.trail-badge { box-shadow: 3px 3px 0 hsl(var(--trail-pine)); }
+.trail-card:hover { border-color: hsl(var(--trail-orange)); transform: translateX(2px); }
+
+.trail-workspace [data-block-wrapper]::before {
+  position: absolute;
+  left: -11px;
+  top: 18px;
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  content: "";
+  background: hsl(var(--trail-moss) / 0.45);
+  transition: background-color 150ms ease, box-shadow 150ms ease;
+}
+
+.trail-workspace [data-block-wrapper][data-active]::before {
+  background: hsl(var(--trail-orange));
+  box-shadow: 0 0 0 4px hsl(var(--trail-orange) / 0.18);
+}
+
+.trail-workspace [data-block-wrapper][data-active] {
+  border-color: hsl(var(--trail-orange));
+}
+
+.trail-paper .text-muted-foreground {
+  color: hsl(var(--trail-moss));
+}
