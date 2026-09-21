@@ -19,12 +19,17 @@ export const apiRequest = async (url, options = {}) => {
   });
 
   const contentType = response.headers.get('content-type') || '';
-  const payload = contentType.includes('application/json')
+  const isJsonResponse = contentType.includes('application/json');
+  const payload = isJsonResponse
     ? await response.json()
     : null;
 
   if (!response.ok) {
     throw new ApiError(payload?.error || '请求失败', response.status);
+  }
+
+  if (!isJsonResponse) {
+    throw new ApiError('服务器返回了无法识别的响应', response.status);
   }
 
   return payload?.data;

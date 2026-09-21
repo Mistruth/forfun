@@ -47,8 +47,13 @@ const TemplatePickerDialog = ({ open, onClose, onApply }) => {
   const loadUserTemplates = useCallback(async () => {
     try {
       const list = await templateStore.getAll();
+      if (!Array.isArray(list)) {
+        throw new TypeError('模板列表响应格式不正确');
+      }
       setUserTemplates(list);
-    } catch {
+    } catch (error) {
+      setUserTemplates([]);
+      console.error('加载模板失败', error);
       toast.error('加载模板失败');
     }
   }, []);

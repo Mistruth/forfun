@@ -122,12 +122,12 @@ DOCKER_API_VERSION=1.43 PORT=9090 docker compose down
 
 本地 Docker 默认将宿主机 `9090` 映射到容器内 `8080`，数据保存在 Docker 命名卷 `app-data`。当前本机 Docker CLI 与 daemon 版本不一致时需加 `DOCKER_API_VERSION=1.43`。完整本地流程见 [本地 Docker 部署指南](docs/local-docker-deploy.md)。
 
-部署到 forfun 服务器时使用预构建镜像模式（`image: forfun-app:latest`），需指定 `--platform linux/amd64`（本地 Mac 为 ARM）。完整远程流程见 [部署至 forfun 服务器指南](docs/deploy-to-forfun.md)。
+部署到 forfun 生产服务器时，将当前工作区上传到 `admin@8.137.80.234` 的临时构建目录，在生产机原生 `linux/amd64` 环境构建 `forfun-app:latest`。上线前必须为旧镜像创建回滚标签，然后在 `/root/forfun` 使用现有 Compose 配置重建容器。完整流程见 [部署至 forfun 服务器指南](docs/deploy-to-forfun.md)。
 
 ---
 
 ## 参考文档
 
-- **[部署指南](docs/deploy-to-forfun.md)** — 本地构建 Docker 镜像 → 传输到 forfun 服务器 → 启动容器的完整流程，含一键部署命令和常见问题排查。
+- **[部署指南](docs/deploy-to-forfun.md)** — 上传当前工作区 → 生产机构建 amd64 镜像 → 备份旧镜像 → 重建容器 → 验证页面和 API 的完整流程。
 - **[本地 Docker 部署指南](docs/local-docker-deploy.md)** — 本地 9090 端口构建、启动、验证、日志、停止和数据卷说明。
 - **[UI 修改必看](docs/ui-style-reference.md)** — 视觉语言与交互规范。所有 UI 开发必须遵守：颜色 token、字号纪律、交互状态（hover/active/focus）、反模式清单、提交前检查清单。

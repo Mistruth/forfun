@@ -1,7 +1,6 @@
 FROM node:20-bookworm-slim AS deps
 WORKDIR /app
-RUN sed -i 's|http://deb.debian.org|http://mirrors.aliyun.com|g' /etc/apt/sources.list.d/debian.sources \
-  && apt-get update \
+RUN apt-get update \
   && apt-get install -y --no-install-recommends python3 make g++ \
   && rm -rf /var/lib/apt/lists/*
 RUN npm install -g pnpm@10
