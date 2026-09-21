@@ -125,8 +125,8 @@ const ToolbarButton = ({ label, children, ...props }) => (
 );
 
 const BlockToolbar = ({ name, selected, canMoveUp, canMoveDown, onMoveUp, onMoveDown, onDuplicate, onDelete }) => (
-  <div className={`absolute -top-8 left-0 z-20 items-center gap-0.5 rounded-md border bg-card p-0.5 ${selected ? 'flex' : 'hidden group-hover:flex group-focus-within:flex'}`}>
-    <span className="flex items-center gap-1 px-1.5 text-xs font-medium"><GripVertical className="size-3 text-muted-foreground" />{name}</span>
+  <div data-block-toolbar className={`absolute -top-3 right-2 z-20 items-center gap-0.5 rounded-full border bg-card p-1 shadow-sm transition-all ${selected ? 'flex' : 'hidden group-hover:flex group-focus-within:flex'}`}>
+    <span className="flex items-center gap-1.5 pl-1.5 pr-1 text-xs font-medium"><span className="size-1.5 rounded-full bg-current opacity-70" /><GripVertical className="size-3 text-muted-foreground" />{name}</span>
     <ToolbarButton label="上移内容块" onClick={onMoveUp} disabled={!canMoveUp}><ChevronUp className="size-3.5" /></ToolbarButton>
     <ToolbarButton label="下移内容块" onClick={onMoveDown} disabled={!canMoveDown}><ChevronDown className="size-3.5" /></ToolbarButton>
     <ToolbarButton label="复制内容块" onClick={onDuplicate}><Copy className="size-3.5" /></ToolbarButton>
